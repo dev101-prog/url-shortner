@@ -81,8 +81,12 @@ public record AppProperties(
    *
    * @param createPerMinute creates per minute per API key
    * @param redirectPerMinute redirects per minute per IP hash
+   * @param maxBuckets maximum live fixed-window counters (design §3.5: 200,000)
    */
-  public record RateLimit(@Positive int createPerMinute, @Positive int redirectPerMinute) {}
+  public record RateLimit(
+      @Positive int createPerMinute,
+      @Positive int redirectPerMinute,
+      @Positive @DefaultValue("200000") long maxBuckets) {}
 
   /**
    * Click pipeline settings (design §3.6; PRD A9).

@@ -16,7 +16,7 @@ import org.springframework.context.annotation.Import;
  */
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
-@WebMvcTest
+@WebMvcTest(controllers = ProbeController.class)
 @Import({ProbeController.class, ErrorEnvelopeWriter.class})
 @EnableConfigurationProperties(AppProperties.class)
 public @interface ApiSliceTest {}

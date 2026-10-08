@@ -346,6 +346,7 @@
           <effort>Max</effort>
           <threshold>Medium</threshold>
           <failOnError>true</failOnError>
+          <excludeFilterFile>${project.basedir}/config/spotbugs/exclude.xml</excludeFilterFile>
           <includeTests>false</includeTests>
           <plugins>
             <plugin>

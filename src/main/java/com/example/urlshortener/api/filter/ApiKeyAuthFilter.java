@@ -34,7 +34,7 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
   public static final String HEADER = "X-API-Key";
 
   /** Request attribute holding the {@link AuthenticatedOwner}. */
-  public static final String OWNER_ATTRIBUTE = AuthenticatedOwner.class.getName();
+  public static final String OWNER_ATTRIBUTE = "urlshortener.authenticatedOwner";
 
   private static final Logger LOG = LoggerFactory.getLogger(ApiKeyAuthFilter.class);
   private static final List<String> PROTECTED_PREFIX = List.of("api", "v1");

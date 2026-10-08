@@ -1,10 +1,8 @@
 package com.example.urlshortener.service;
 
-import com.example.urlshortener.config.AppProperties;
 import com.example.urlshortener.repository.ApiKeyRepository;
 import com.example.urlshortener.service.domain.AuthenticatedOwner;
 import com.github.benmanes.caffeine.cache.Cache;
-import com.github.benmanes.caffeine.cache.Caffeine;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -27,15 +25,11 @@ public final class ApiKeyService {
    * Creates the service.
    *
    * @param repository API key repository
-   * @param props application properties
+   * @param cache {@code apiKeys} cache (design §3.5)
    */
-  public ApiKeyService(ApiKeyRepository repository, AppProperties props) {
+  public ApiKeyService(ApiKeyRepository repository, Cache<String, AuthenticatedOwner> cache) {
     this.repository = repository;
-    this.cache =
-        Caffeine.newBuilder()
-            .maximumSize(props.cache().apiKeyMaxSize())
-            .expireAfterWrite(props.cache().apiKeyTtl())
-            .build();
+    this.cache = cache;
   }
 
   /**

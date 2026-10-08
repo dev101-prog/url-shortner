@@ -8,6 +8,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.example.urlshortener.config.CacheConfig;
 import com.example.urlshortener.repository.ApiKeyRepository;
 import com.example.urlshortener.service.ApiKeyService;
 import com.example.urlshortener.service.domain.AuthenticatedOwner;
@@ -25,7 +26,8 @@ class ApiKeyServiceTest {
       "fa3eb4fb3f5e5d2e92f91162aa0b6e130435c0c8fde4a11f452db7575a7d37d3";
 
   private final ApiKeyRepository repository = mock(ApiKeyRepository.class);
-  private final ApiKeyService service = new ApiKeyService(repository, TestProperties.defaults());
+  private final ApiKeyService service =
+      new ApiKeyService(repository, new CacheConfig().apiKeyCache(TestProperties.defaults()));
 
   @Test
   void nfr4_1_authenticatesBySha256HexOfTheRawKey() {

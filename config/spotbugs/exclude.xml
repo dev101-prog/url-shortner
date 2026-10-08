@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  G3 SpotBugs exclusions. See docs/adr/0011-spotbugs-di-constructor-exclusion.md.
+  Scope is deliberately narrow: ONLY EI_EXPOSE_REP2, ONLY in constructors, ONLY for application
+  classes in api/service/infra/repository/config (constructor injection of Spring beans).
+  Every other bug pattern, and EI_EXPOSE_REP2 outside constructors, still fails the build at
+  threshold Medium. Do not broaden without human approval.
+-->
+<FindBugsFilter
+    xmlns="https://github.com/spotbugs/filter/3.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="https://github.com/spotbugs/filter/3.0.0 https://raw.githubusercontent.com/spotbugs/spotbugs/3.1.0/spotbugs/etc/findbugsfilter.xsd">
+  <Match>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+    <Class name="~com\.example\.urlshortener\.(api|service|infra|repository|config)\..*"/>
+    <Method name="&lt;init&gt;"/>
+  </Match>
+</FindBugsFilter>

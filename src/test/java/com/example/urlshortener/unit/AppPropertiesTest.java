@@ -56,6 +56,7 @@ class AppPropertiesTest {
           assertThat(p.http().maxBodyBytes()).isEqualTo(8192);
           assertThat(p.rateLimit().createPerMinute()).isEqualTo(60);
           assertThat(p.rateLimit().redirectPerMinute()).isEqualTo(600);
+          assertThat(p.rateLimit().maxBuckets()).isEqualTo(200_000L);
           assertThat(p.analytics().bufferCapacity()).isEqualTo(10_000);
           assertThat(p.analytics().flushInterval()).isEqualTo(Duration.ofSeconds(1));
           assertThat(p.analytics().flushBatchSize()).isEqualTo(500);

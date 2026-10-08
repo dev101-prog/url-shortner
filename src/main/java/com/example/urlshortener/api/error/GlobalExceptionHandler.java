@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
@@ -33,6 +34,11 @@ public class GlobalExceptionHandler {
 
   private static final Logger LOG = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
+  /** Detail key carrying the {@code Retry-After} value of a {@code RATE_LIMITED} error. */
+  public static final String RETRY_AFTER_DETAIL = "retry_after_seconds";
+
+  private static final String EXPIRES_AT_FIELD = "expires_at";
+
   /**
    * Expected failures raised by services and controllers.
    *
@@ -41,7 +47,13 @@ public class GlobalExceptionHandler {
    */
   @ExceptionHandler(ApiException.class)
   public ResponseEntity<ErrorResponse> handleApi(ApiException e) {
-    return envelope(e.code(), e.getMessage(), e.details());
+    ResponseEntity.BodyBuilder response = ResponseEntity.status(e.code().httpStatus());
+    if (e.code() == ErrorCode.RATE_LIMITED
+        && e.details() != null
+        && e.details().get(RETRY_AFTER_DETAIL) instanceof Number seconds) {
+      response.header(HttpHeaders.RETRY_AFTER, String.valueOf(seconds.longValue()));
+    }
+    return response.body(ErrorResponse.of(e.code().name(), e.getMessage(), e.details()));
   }
 
   /**
@@ -61,10 +73,16 @@ public class GlobalExceptionHandler {
           Map.of("field", unknown.getPropertyName()));
     }
     if (cause instanceof JsonMappingException mapping) {
+      String field = fieldPath(mapping);
+      if (EXPIRES_AT_FIELD.equals(field)) {
+        // URL-FR-4.2 / design §3.3: expires_at must be ISO-8601 with an offset
+        return envelope(
+            ErrorCode.INVALID_EXPIRY, "expires_at must be ISO-8601 with an offset.", null);
+      }
       return envelope(
           ErrorCode.VALIDATION_FAILED,
           ErrorCode.VALIDATION_FAILED.defaultMessage(),
-          Map.of("field", fieldPath(mapping)));
+          Map.of("field", field));
     }
     return envelope(
         ErrorCode.MALFORMED_REQUEST, ErrorCode.MALFORMED_REQUEST.defaultMessage(), null);
