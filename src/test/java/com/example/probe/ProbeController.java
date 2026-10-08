@@ -69,6 +69,18 @@ public class ProbeController {
   }
 
   /**
+   * Route with a code variable.
+   *
+   * @param code code
+   * @return the code
+   */
+  @GetMapping("/probe/code/{code}")
+  public Map<String, Object> code(
+      @org.springframework.web.bind.annotation.PathVariable String code) {
+    return Map.of("code", code);
+  }
+
+  /**
    * Throws an expected API error.
    *
    * @return never

@@ -1,6 +1,6 @@
 # ADR 0011: SpotBugs EI_EXPOSE_REP2 exclusion for dependency-injection constructors
 
-- Status: Accepted (human decision relayed by the coordinating agent on 2026-10-07; confirm at PR review)
+- Status: Accepted (human decision, 2026-10-07)
 - Date: 2026-10-07
 - Gate affected: G3 (SpotBugs + FindSecBugs, threshold Medium), design §9.2
 - Build step: 7 (design §7.5)

@@ -10,13 +10,11 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
-import com.example.urlshortener.config.AppProperties;
 import com.example.urlshortener.infra.ClickBuffer;
 import com.example.urlshortener.infra.ClickFlushWorker;
 import com.example.urlshortener.repository.ClickEventRepository;
 import com.example.urlshortener.service.domain.ClickEvent;
 import com.example.urlshortener.support.MutableClock;
-import com.example.urlshortener.support.TestProperties;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.Duration;
 import java.time.Instant;
@@ -33,30 +31,10 @@ class ClickFlushWorkerTest {
   private final ClickEventRepository repo = mock(ClickEventRepository.class);
   private final SimpleMeterRegistry meters = new SimpleMeterRegistry();
   private final MutableClock clock = new MutableClock(NOW);
-  private final AppProperties props = noBackoff(TestProperties.defaults());
-  private final ClickBuffer buffer = new ClickBuffer(props, meters);
-  private final ClickFlushWorker worker = new ClickFlushWorker(buffer, repo, props, clock, meters);
+  private final ClickBuffer buffer = new ClickBuffer(10_000, meters);
+  private final ClickFlushWorker worker =
+      new ClickFlushWorker(buffer, repo, clock, meters, 500, Duration.ZERO, Duration.ofSeconds(10));
   private final List<Integer> savedSizes = new ArrayList<>();
-
-  private static AppProperties noBackoff(AppProperties d) {
-    AppProperties.Analytics a = d.analytics();
-    return new AppProperties(
-        d.baseUrl(),
-        d.links(),
-        d.cache(),
-        d.rateLimit(),
-        new AppProperties.Analytics(
-            a.bufferCapacity(),
-            a.flushInterval(),
-            a.flushBatchSize(),
-            a.ipSalt(),
-            a.botPatternsVersion(),
-            a.botPatterns(),
-            Duration.ZERO,
-            a.shutdownDrainTimeout()),
-        d.http(),
-        d.stats());
-  }
 
   private void fill(int n) {
     for (int i = 0; i < n; i++) {
@@ -144,8 +122,9 @@ class ClickFlushWorkerTest {
   void fr7_6_interruptedRetryDropsAndKeepsInterruptFlag() {
     doThrow(new DataAccessResourceFailureException("db down")).when(repo).saveBatch(anyList());
     fill(1);
-    AppProperties d = TestProperties.defaults();
-    ClickFlushWorker slowRetry = new ClickFlushWorker(buffer, repo, d, clock, meters);
+    ClickFlushWorker slowRetry =
+        new ClickFlushWorker(
+            buffer, repo, clock, meters, 500, Duration.ofMillis(200), Duration.ofSeconds(10));
 
     Thread.currentThread().interrupt();
     try {

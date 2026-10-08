@@ -99,6 +99,7 @@ public final class TestProperties {
             Duration.ofMillis(200),
             Duration.ofSeconds(10)),
         new AppProperties.Http(8192),
-        new AppProperties.Stats(30, 365));
+        new AppProperties.Stats(30, 365),
+        new AppProperties.Health(Duration.ofSeconds(1)));
   }
 }

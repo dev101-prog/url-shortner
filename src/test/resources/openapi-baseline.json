@@ -1,0 +1,657 @@
+{
+  "components" : {
+    "schemas" : {
+      "Country" : {
+        "properties" : {
+          "clicks" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "country" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "CreateLinkRequest" : {
+        "properties" : {
+          "alias" : {
+            "type" : "string"
+          },
+          "dedupe" : {
+            "type" : "boolean"
+          },
+          "expiresAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "url" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "Day" : {
+        "properties" : {
+          "clicks" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "date" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "humanClicks" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "uniqueVisitors" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "ErrorBody" : {
+        "properties" : {
+          "code" : {
+            "description" : "Machine-readable error code (design §5.2).",
+            "enum" : [ "MALFORMED_REQUEST", "UNAUTHORIZED", "NOT_FOUND", "ALIAS_CONFLICT", "LINK_EXPIRED", "LENGTH_REQUIRED", "PAYLOAD_TOO_LARGE", "INVALID_URL", "TARGET_BLOCKED", "INVALID_ALIAS", "RESERVED_ALIAS", "INVALID_EXPIRY", "INVALID_DATE_RANGE", "VALIDATION_FAILED", "RATE_LIMITED", "INTERNAL_ERROR", "CODE_GENERATION_EXHAUSTED", "NOT_READY" ],
+            "type" : "string"
+          },
+          "details" : {
+            "additionalProperties" : {
+              "description" : "Optional machine-readable details.",
+              "nullable" : true,
+              "type" : "object"
+            },
+            "description" : "Optional machine-readable details.",
+            "nullable" : true,
+            "type" : "object"
+          },
+          "message" : {
+            "description" : "Human-readable message; never contains stack traces.",
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "ErrorResponse" : {
+        "description" : "Error envelope used by every non-2xx response (design §5.1).",
+        "example" : {
+          "error" : {
+            "code" : "ALIAS_CONFLICT",
+            "details" : {
+              "alias" : "spring-docs"
+            },
+            "message" : "Alias 'spring-docs' is already in use."
+          }
+        },
+        "properties" : {
+          "error" : {
+            "$ref" : "#/components/schemas/ErrorBody"
+          }
+        },
+        "type" : "object"
+      },
+      "LinkMetadataResponse" : {
+        "properties" : {
+          "code" : {
+            "type" : "string"
+          },
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "expiresAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "shortUrl" : {
+            "type" : "string"
+          },
+          "status" : {
+            "type" : "string"
+          },
+          "target" : {
+            "type" : "string"
+          },
+          "totalClicks" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "LinkResponse" : {
+        "properties" : {
+          "code" : {
+            "type" : "string"
+          },
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "expiresAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "shortUrl" : {
+            "type" : "string"
+          },
+          "status" : {
+            "type" : "string"
+          },
+          "target" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "Referrer" : {
+        "properties" : {
+          "clicks" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "referrer" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "StatsResponse" : {
+        "properties" : {
+          "botClicks" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "clicksPerDay" : {
+            "items" : {
+              "$ref" : "#/components/schemas/Day"
+            },
+            "type" : "array"
+          },
+          "code" : {
+            "type" : "string"
+          },
+          "from" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "humanClicks" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "to" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "topCountries" : {
+            "items" : {
+              "$ref" : "#/components/schemas/Country"
+            },
+            "type" : "array"
+          },
+          "topReferrers" : {
+            "items" : {
+              "$ref" : "#/components/schemas/Referrer"
+            },
+            "type" : "array"
+          },
+          "totalClicks" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "uniqueVisitorsEstimate" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      }
+    },
+    "securitySchemes" : {
+      "ApiKeyAuth" : {
+        "description" : "Raw API key; stored server-side only as SHA-256.",
+        "in" : "header",
+        "name" : "X-API-Key",
+        "type" : "apiKey"
+      }
+    }
+  },
+  "info" : {
+    "description" : "Shorten, resolve, inspect and deactivate links. All /api/v1 endpoints need X-API-Key. Every non-2xx response uses the error envelope {\"error\":{\"code\",\"message\",\"details\"}}.",
+    "title" : "URL Shortener API",
+    "version" : "v1"
+  },
+  "openapi" : "3.0.1",
+  "paths" : {
+    "/api/v1/links" : {
+      "post" : {
+        "description" : "Random 7-char base62 code or custom alias; opt-in dedupe.",
+        "operationId" : "create",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CreateLinkRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/LinkResponse"
+                }
+              }
+            },
+            "description" : "Dedupe hit: an existing active link of this owner is returned."
+          },
+          "201" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/LinkResponse"
+                }
+              }
+            },
+            "description" : "Created; Location header points to the link."
+          },
+          "400" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description" : "MALFORMED_REQUEST: body is not valid JSON"
+          },
+          "401" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description" : "UNAUTHORIZED: X-API-Key missing, unknown or revoked"
+          },
+          "409" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description" : "ALIAS_CONFLICT: alias already exists in any status"
+          },
+          "411" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description" : "LENGTH_REQUIRED: POST without Content-Length"
+          },
+          "413" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description" : "PAYLOAD_TOO_LARGE: body over 8 KB"
+          },
+          "422" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description" : "INVALID_URL, TARGET_BLOCKED, INVALID_ALIAS, RESERVED_ALIAS, INVALID_EXPIRY or VALIDATION_FAILED"
+          },
+          "429" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description" : "RATE_LIMITED: per-key create limit exceeded; see Retry-After"
+          },
+          "503" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description" : "CODE_GENERATION_EXHAUSTED: 5 code collisions in a row"
+          }
+        },
+        "security" : [ {
+          "ApiKeyAuth" : [ ]
+        } ],
+        "summary" : "Create a short link",
+        "tags" : [ "links" ]
+      }
+    },
+    "/api/v1/links/{code}" : {
+      "delete" : {
+        "description" : "Idempotent; owner only.",
+        "operationId" : "deactivate",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "code",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "Deactivated (also on repeat)."
+          },
+          "401" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description" : "UNAUTHORIZED: X-API-Key missing, unknown or revoked"
+          },
+          "404" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description" : "NOT_FOUND: unknown code or not owned by the caller"
+          }
+        },
+        "security" : [ {
+          "ApiKeyAuth" : [ ]
+        } ],
+        "summary" : "Deactivate (soft delete)",
+        "tags" : [ "links" ]
+      },
+      "get" : {
+        "description" : "Owner only; other owners get 404.",
+        "operationId" : "get",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "code",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/LinkMetadataResponse"
+                }
+              }
+            },
+            "description" : "Metadata with lifetime total_clicks."
+          },
+          "401" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description" : "UNAUTHORIZED: X-API-Key missing, unknown or revoked"
+          },
+          "404" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description" : "NOT_FOUND: unknown code or not owned by the caller"
+          }
+        },
+        "security" : [ {
+          "ApiKeyAuth" : [ ]
+        } ],
+        "summary" : "Link metadata",
+        "tags" : [ "links" ]
+      }
+    },
+    "/api/v1/links/{code}/stats" : {
+      "get" : {
+        "description" : "Inclusive UTC dates; default last 30 days, max 365.",
+        "operationId" : "stats",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "code",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "from",
+          "required" : false,
+          "schema" : {
+            "format" : "date",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "to",
+          "required" : false,
+          "schema" : {
+            "format" : "date",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/StatsResponse"
+                }
+              }
+            },
+            "description" : "Totals, clicks per day (zero-filled), top referrers and countries."
+          },
+          "401" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description" : "UNAUTHORIZED: X-API-Key missing, unknown or revoked"
+          },
+          "404" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description" : "NOT_FOUND: unknown code or not owned by the caller"
+          },
+          "422" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description" : "INVALID_DATE_RANGE (from after to, span over 365 days) or VALIDATION_FAILED (bad date format)"
+          }
+        },
+        "security" : [ {
+          "ApiKeyAuth" : [ ]
+        } ],
+        "summary" : "Click statistics",
+        "tags" : [ "links" ]
+      }
+    },
+    "/healthz" : {
+      "get" : {
+        "description" : "Always 200 while the process is running.",
+        "operationId" : "liveness",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "additionalProperties" : {
+                    "type" : "object"
+                  },
+                  "type" : "object"
+                }
+              }
+            },
+            "description" : "Process is alive."
+          }
+        },
+        "summary" : "Liveness",
+        "tags" : [ "health" ]
+      }
+    },
+    "/readyz" : {
+      "get" : {
+        "description" : "Checks the database only (design §16.3).",
+        "operationId" : "readiness",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "additionalProperties" : {
+                    "type" : "object"
+                  },
+                  "type" : "object"
+                }
+              }
+            },
+            "description" : "{\"status\":\"UP\",\"checks\":{\"db\":\"UP\"}}"
+          },
+          "503" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "additionalProperties" : {
+                    "type" : "object"
+                  },
+                  "type" : "object"
+                }
+              }
+            },
+            "description" : "NOT_READY: {\"status\":\"DOWN\",\"checks\":{\"db\":\"DOWN\"}}"
+          }
+        },
+        "summary" : "Readiness",
+        "tags" : [ "health" ]
+      }
+    },
+    "/{code}" : {
+      "get" : {
+        "description" : "302 to the target; never cached by browsers.",
+        "operationId" : "redirect",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "code",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "302" : {
+            "description" : "Redirect to the target URL.",
+            "headers" : {
+              "Cache-Control" : {
+                "description" : "private, no-cache, no-store, max-age=0",
+                "style" : "simple"
+              },
+              "Location" : {
+                "description" : "Target URL",
+                "style" : "simple"
+              }
+            }
+          },
+          "404" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description" : "NOT_FOUND: unknown or inactive code"
+          },
+          "410" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description" : "LINK_EXPIRED: the link has expired"
+          },
+          "429" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description" : "RATE_LIMITED: per-IP limit exceeded; see Retry-After"
+          }
+        },
+        "summary" : "Resolve a short code",
+        "tags" : [ "redirect" ]
+      }
+    }
+  },
+  "servers" : [ {
+    "url" : "http://localhost:8080"
+  } ],
+  "tags" : [ {
+    "description" : "Create, inspect, deactivate links and read their stats",
+    "name" : "links"
+  }, {
+    "description" : "Public short-link resolution",
+    "name" : "redirect"
+  }, {
+    "description" : "Liveness and readiness probes",
+    "name" : "health"
+  } ]
+}

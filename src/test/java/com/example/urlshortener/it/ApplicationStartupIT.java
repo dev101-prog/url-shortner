@@ -27,6 +27,7 @@ class ApplicationStartupIT {
           "--spring.datasource.url=" + pg.getJdbcUrl(),
           "--spring.datasource.username=" + pg.getUsername(),
           "--spring.datasource.password=" + pg.getPassword(),
+          "--app.analytics.ip-salt=startup-it-salt",
           "--context.initializer.classes=" + CapturingInitializer.class.getName()
         });
 

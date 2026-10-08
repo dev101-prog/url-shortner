@@ -1,6 +1,5 @@
 package com.example.urlshortener.infra;
 
-import com.example.urlshortener.config.AppProperties;
 import com.example.urlshortener.repository.ClickEventRepository;
 import com.example.urlshortener.service.domain.ClickEvent;
 import io.micrometer.core.instrument.Counter;
@@ -16,15 +15,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.SmartLifecycle;
 import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.stereotype.Component;
 
 /**
  * Moves clicks from the {@link ClickBuffer} to Postgres (design §3.6, flow §6.4). Every flush
  * interval it drains up to {@code flush-batch-size} events and writes them in one transaction. On
  * failure it retries once after {@code flush-retry-backoff}, then drops the batch and counts it. On
- * shutdown it drains the buffer until empty, bounded by {@code shutdown-drain-timeout}.
+ * shutdown it drains the buffer until empty, bounded by {@code shutdown-drain-timeout}. Constructed
+ * by {@code config.ClickPipelineConfig}, which passes the {@code app.analytics.*} values in.
  */
-@Component
 public final class ClickFlushWorker implements SmartLifecycle {
 
   /**
@@ -51,22 +49,26 @@ public final class ClickFlushWorker implements SmartLifecycle {
    *
    * @param buffer click buffer
    * @param repository click event repository
-   * @param props application properties
    * @param clock application clock
    * @param meters meter registry
+   * @param batchSize maximum events per flush
+   * @param retryBackoff wait before the single retry
+   * @param drainTimeout maximum shutdown drain time
    */
   public ClickFlushWorker(
       ClickBuffer buffer,
       ClickEventRepository repository,
-      AppProperties props,
       Clock clock,
-      MeterRegistry meters) {
+      MeterRegistry meters,
+      int batchSize,
+      Duration retryBackoff,
+      Duration drainTimeout) {
     this.buffer = buffer;
     this.repository = repository;
     this.clock = clock;
-    this.batchSize = props.analytics().flushBatchSize();
-    this.retryBackoff = props.analytics().flushRetryBackoff();
-    this.drainTimeout = props.analytics().shutdownDrainTimeout();
+    this.batchSize = batchSize;
+    this.retryBackoff = retryBackoff;
+    this.drainTimeout = drainTimeout;
     this.flushed = meters.counter("urlshortener.clicks.flushed");
     this.droppedFlushFailed =
         Counter.builder("urlshortener.clicks.dropped")

@@ -22,6 +22,7 @@ import org.springframework.validation.annotation.Validated;
  * @param analytics click pipeline settings
  * @param http HTTP input limits (not in §7.3; defaults equal the design values)
  * @param stats stats endpoint range rules (not in §7.3; defaults equal the design values)
+ * @param health readiness check settings (not in §7.3; defaults equal the design values)
  */
 @Validated
 @ConfigurationProperties(prefix = "app")
@@ -32,7 +33,8 @@ public record AppProperties(
     @NotNull @Valid RateLimit rateLimit,
     @NotNull @Valid Analytics analytics,
     @NotNull @Valid @DefaultValue Http http,
-    @NotNull @Valid @DefaultValue Stats stats) {
+    @NotNull @Valid @DefaultValue Stats stats,
+    @NotNull @Valid @DefaultValue Health health) {
 
   /**
    * Link creation rules (URL-FR-1.x, 2.x, 4.x).
@@ -133,4 +135,11 @@ public record AppProperties(
    */
   public record Stats(
       @Positive @DefaultValue("30") int defaultDays, @Positive @DefaultValue("365") int maxDays) {}
+
+  /**
+   * Readiness settings (design §6.8, URL-FR-8.2).
+   *
+   * @param dbTimeout maximum time for the readiness database check (design §3.1: 1 s)
+   */
+  public record Health(@NotNull @DefaultValue("PT1S") Duration dbTimeout) {}
 }

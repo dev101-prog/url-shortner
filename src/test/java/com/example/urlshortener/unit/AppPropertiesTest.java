@@ -56,6 +56,7 @@ class AppPropertiesTest {
           assertThat(p.http().maxBodyBytes()).isEqualTo(8192);
           assertThat(p.stats().defaultDays()).isEqualTo(30);
           assertThat(p.stats().maxDays()).isEqualTo(365);
+          assertThat(p.health().dbTimeout()).isEqualTo(Duration.ofSeconds(1));
           assertThat(p.rateLimit().createPerMinute()).isEqualTo(60);
           assertThat(p.rateLimit().redirectPerMinute()).isEqualTo(600);
           assertThat(p.rateLimit().maxBuckets()).isEqualTo(200_000L);
