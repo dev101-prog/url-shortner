@@ -61,7 +61,7 @@ Thresholds and code were not tuned to pass.
 |---|---|
 | `scripts/demo.sh` against `docker compose up --build -d` (CUJ-1 to CUJ-4) | 16/16 PASS, re-run twice on the same database; exit 1 with 0/16 when the app is unreachable |
 | Quick start from a fresh clone and a fresh DB volume (README steps 1-3) | build OK, `/readyz` UP, demo 16/16 PASS |
-| Postman collection via `postman/newman:6-alpine` | 23 requests, 49 assertions, 0 failures, two consecutive runs |
+| Postman collection via `postman/newman:6-alpine` | 23 requests, 49 assertions, 0 failures, two consecutive runs; again via `docker compose run --rm newman` and `scripts/postman.sh` from the `~/Desktop` checkout (49/49 each) |
 | Postgres stopped under the running app | `/readyz` 503, `/healthz` 200, API and cache-miss redirects 500; after restart `/readyz` 200 within about 2 s, create 201, no app restart |
 | Local runs (`local` profile) | 0 ERROR logs, no raw API keys or client IPs in the logs |
 
@@ -86,6 +86,7 @@ Thresholds and code were not tuned to pass.
 | 15 | `/error` is handled by `EnvelopeErrorController`, one read-only handler per HTTP method (FindSecBugs CSRF rule) | implementation decision, for review |
 | 16 | `scripts/demo.sh` uses a unique alias per run and an expiry relative to today (re-runnable) | requested by the coordinator |
 | 17 | Test-only infrastructure: Hikari pool capped at 5 in the test profile; the test container allows 300 connections | test configuration only |
+| 18 | `docker-compose.yml` beyond §7.2: an explicit `app` healthcheck (same probe as the Dockerfile `HEALTHCHECK`) and `newman` / `k6` services under the `test` profile; perf overrides in `perf/compose.perf.yml`; no bind mounts or host networking in any documented command | human decision (portability, 2026-10-08) |
 
 ## Open items
 - NFR-1 latency targets not met on the laptop. Re-run on the reference environment, agree on think

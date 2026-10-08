@@ -3,12 +3,14 @@
 ## Environment (2026-10-08, commit d6dcd1c)
 - Host: MacBook Pro, Intel Core i7-9750H @ 2.60 GHz (6 cores / 12 threads), 32 GB RAM, macOS 15.6.
 - Docker Desktop 28.3.3, VM with 12 CPUs and 8 GB RAM. App, Postgres 16.4 and k6 0.54.0 all run
-  as containers on the same host and the same compose network (`myworkdir_default`).
+  as containers on the same host and the same compose network.
 - App image built from `Dockerfile` (Temurin 21 JRE), profile `local`, JSON access logs at INFO.
+- The 2026-10-08 numbers were measured with the equivalent `docker run` setup used before
+  `perf/compose.perf.yml` existed (same image, same overrides, same network topology).
 
 ## Perf-only overrides (not changes to the defaults)
 The default limits are correct for production but make the §8.6 profile impossible from one load
-generator, so the perf run used environment overrides on a separate container from the same image:
+generator, so perf runs start the app with [`perf/compose.perf.yml`](../../perf/compose.perf.yml):
 
 | Override | Why |
 |---|---|
@@ -17,18 +19,20 @@ generator, so the perf run used environment overrides on a separate container fr
 | `APP_CACHE_NEGATIVETTL=PT0S` | miss scenario: §8.6 requires the negative cache to be disabled |
 | `LOGGING_LEVEL_COM_EXAMPLE_URLSHORTENER=INFO` | the `local` profile sets DEBUG |
 
+## How to run (any folder, any host: no bind mounts, no host networking)
+k6 runs as the `k6` compose service (profile `test`) on the compose network and reads the script
+from stdin. `--no-deps` keeps the already-running app (and its overrides) untouched.
+
 ```bash
-docker compose stop app
-docker run -d --name urlshortener-perf --network myworkdir_default -p 8080:8080 \
-  -e SPRING_PROFILES_ACTIVE=local -e SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/urlshortener \
-  -e APP_BASE_URL=http://localhost:8080 -e APP_RATELIMIT_CREATEPERMINUTE=100000 \
-  -e APP_RATELIMIT_REDIRECTPERMINUTE=100000000 -e APP_CACHE_NEGATIVETTL=PT0S \
-  -e LOGGING_LEVEL_COM_EXAMPLE_URLSHORTENER=INFO myworkdir-app
-docker run --rm -i --network myworkdir_default -e BASE_URL=http://urlshortener-perf:8080 \
-  -v "$PWD/perf/k6:/scripts:ro" grafana/k6:0.54.0 run /scripts/redirect-hit.js   # then redirect-miss.js
-docker rm -f urlshortener-perf && docker compose up -d
+docker compose -f docker-compose.yml -f perf/compose.perf.yml up --build -d     # app with perf overrides
+docker compose run --rm --no-deps -T k6 run -e BASE_URL=http://app:8080 - < perf/k6/redirect-hit.js
+docker compose run --rm --no-deps -T k6 run -e BASE_URL=http://app:8080 - < perf/k6/redirect-miss.js
+# same thing via the wrapper; extra k6 args are passed through (e.g. a short smoke run):
+bash scripts/k6.sh perf/k6/redirect-hit.js -e VUS=5 -e RAMP=5s -e STEADY=10s -e LINKS=20
+docker compose up -d                                                             # back to default limits
 ```
-(On macOS, Docker Desktop cannot mount folders under `~/Desktop`; copy the scripts to `/tmp` first.)
+Add `--summary-export` only if you mount an output folder; the results below were copied from the
+k6 summaries.
 
 ## Profile
 2-minute ramp to 200 VUs, 5-minute steady phase, `redirects: 0`, no think time (closed loop).

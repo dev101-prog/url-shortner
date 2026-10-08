@@ -24,8 +24,8 @@ bash scripts/demo.sh
 Then explore:
 - Swagger UI: <http://localhost:8080/docs> (OpenAPI JSON at <http://localhost:8080/openapi.json>)
 - Postman: import [postman/url-shortener.postman_collection.json](postman/url-shortener.postman_collection.json)
-  and [postman/local.postman_environment.json](postman/local.postman_environment.json), or run it headless:
-  `docker run --rm --network host -v "$PWD/postman:/etc/newman" postman/newman:6-alpine run url-shortener.postman_collection.json -e local.postman_environment.json`
+  and [postman/local.postman_environment.json](postman/local.postman_environment.json), or run it headless
+  on the compose network with `docker compose run --rm --build newman` (or `bash scripts/postman.sh`)
 - Local demo API keys (local only, design §4.4): `demo-key-alice-0001`, `demo-key-bob-0002`,
   `demo-key-revoked-0003` (revoked).
 
@@ -71,7 +71,9 @@ injection, and k6 load tests.
 ./mvnw -B test                                     # unit, slice, contract, architecture
 bash scripts/demo.sh                               # end-to-end against a running stack
 ```
-Load tests: [perf/k6/](perf/k6/), results and how to run them in [docs/perf/README.md](docs/perf/README.md).
+Load tests: [perf/k6/](perf/k6/), e.g. `bash scripts/k6.sh perf/k6/redirect-hit.js` (k6 runs on the compose
+network and reads the script from stdin; nothing is mounted). Results and the perf setup:
+[docs/perf/README.md](docs/perf/README.md).
 
 ## Quality gates and measurement of quality
 | Gate | Check | Where |
@@ -146,4 +148,4 @@ deviations: design [§16](docs/design-url-shortener.md#16-assumptions-limitation
 | `demo.sh` reports FAIL on `readyz` | wait until `curl localhost:8080/readyz` returns UP, then re-run |
 | App exits with "app.analytics.ip-salt ... must be set" | outside the `local` profile set `APP_IP_SALT` to a secret value |
 | Tests fail to start containers | Docker must be running; Testcontainers needs access to the Docker socket |
-| Docker on macOS cannot mount a folder under `~/Desktop` | copy the files (e.g. `postman/`, `perf/k6/`) to `/tmp` and mount from there |
+| `newman` / `k6` service "depends on undefined service app" | keep the committed `.env` (it enables the `full` profile); don't pass only `--profile test` |

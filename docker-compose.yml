@@ -23,6 +23,22 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/urlshortener
       APP_BASE_URL: http://localhost:8080
     ports: ["8080:8080"]
+    healthcheck:                             # same probe as the Dockerfile HEALTHCHECK
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/healthz || exit 1"]
+      interval: 10s
+      timeout: 2s
+      retries: 3
+
+  # --- test tooling (profile "test"; nothing is bind-mounted, so it works from any folder/host) ---
+  newman:                                    # docker compose run --rm --build newman
+    build: ./postman
+    profiles: ["test"]
+    depends_on: { app: { condition: service_healthy } }
+
+  k6:                                        # docker compose run --rm --no-deps -T k6 run -e BASE_URL=http://app:8080 - < perf/k6/redirect-hit.js
+    image: grafana/k6:0.54.0
+    profiles: ["test"]
+    depends_on: { app: { condition: service_healthy } }
 
 volumes:
   pgdata:

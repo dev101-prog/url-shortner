@@ -1,0 +1,10 @@
+# Perf-only overrides for the app (docs/perf/README.md). Not the defaults: one load generator
+# shares one client IP and API key, and the miss scenario needs the negative cache disabled.
+# docker compose -f docker-compose.yml -f perf/compose.perf.yml up --build -d
+services:
+  app:
+    environment:
+      APP_RATELIMIT_CREATEPERMINUTE: "100000"
+      APP_RATELIMIT_REDIRECTPERMINUTE: "100000000"
+      APP_CACHE_NEGATIVETTL: PT0S
+      LOGGING_LEVEL_COM_EXAMPLE_URLSHORTENER: INFO
