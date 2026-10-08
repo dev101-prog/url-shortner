@@ -176,6 +176,17 @@ class RedirectServiceTest {
     verifyNoInteractions(repo);
   }
 
+  /** B2 regression (design §11.3): an expired link served from the cache must return 410. */
+  @Test
+  void b2_expiredFromCacheReturnsGone() {
+    when(cache.get("Xy9Kp2Q"))
+        .thenReturn(Optional.of(cached(LinkStatus.ACTIVE, NOW.minusSeconds(86_400))));
+
+    assertThat(service.resolve("Xy9Kp2Q", IP, null, null)).isEqualTo(new RedirectResult.Gone());
+    verifyNoInteractions(repo);
+    assertThat(sunk).isEmpty();
+  }
+
   @Test
   void fr3_2_inactiveFromCacheIs404() {
     when(cache.get("Qm4Rt8Z")).thenReturn(Optional.of(cached(LinkStatus.INACTIVE, null)));
