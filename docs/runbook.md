@@ -28,6 +28,25 @@ Developer mode: `docker compose up -d postgres` then `./mvnw spring-boot:run -Ds
 | Postgres down | 500 on API and on redirect misses | `/readyz` 503, `hikaricp_connections_pending`, Hikari timeouts in logs | cache hits keep redirecting until TTL (10 min); misses 500 | 500 | flush retries once, then drops | 503 | `docker compose start postgres`; the app reconnects without a restart (verified: /readyz back to 200 about 2 s after Postgres started, create 201) |
 | Process crash | instance gone | container restarts | – | committed links are safe (URL-FR-1.6) | buffered clicks lost (≤ 1 s typical, ≤ 10,000 events) | – | restart; no data repair needed |
 
+### Failure modes: diagnosis and recovery commands (scenario B4)
+Every command below was run against `docker compose up --build -d` on 2026-10-08; the outputs
+shown are what it printed.
+
+| Step | Command | What to look for |
+|---|---|---|
+| Probes | `curl -s localhost:8080/healthz; curl -s localhost:8080/readyz` | `{"status":"UP"}`; readiness `{"checks":{"db":"UP"},"status":"UP"}`. When the DB is down: 503 `{"error":{"code":"NOT_READY",...,"details":{"checks":{"db":"DOWN"}}}}` |
+| Key metrics | `curl -s localhost:8080/actuator/prometheus \| grep -E '^(urlshortener_(cache_errors\|clicks_dropped\|clicks_buffer_depth\|clicks_flushed\|negative_cache_hits\|codegen_exhausted)\|hikaricp_connections_pending)'` | non-zero `cache_errors_total`, `clicks_dropped_total{reason=...}`, a buffer depth near 10,000, `hikaricp_connections_pending` > 0 |
+| Rate limiting | `curl -s localhost:8080/actuator/prometheus \| grep '^urlshortener_ratelimit_denied'` | appears after the first 429, e.g. `urlshortener_ratelimit_denied_total{bucket="create"} 2.0` |
+| Recent problems | `docker compose logs app --since 10m --no-log-prefix \| grep -E '"level":"(WARN\|ERROR)"'` | WARN lines name the failing component (`Link cache ... failed`, `Dropped N click events`, `Readiness database check failed`) |
+| Trace one request | send `X-Request-Id: <id>`, then `docker compose logs app --no-log-prefix \| grep '"request_id":"<id>"'` | the access-log line with `route`, `status`, `latency_ms` (never IPs or keys) |
+| DB outage drill | `docker compose stop postgres` → `curl -s localhost:8080/readyz` → `docker compose start postgres` | 503 `NOT_READY` while stopped; back to 200 about 1 s after start, with no app restart |
+| Graceful drain | `docker compose stop app && docker compose logs app --no-log-prefix \| grep -E 'drained on shutdown\|Graceful shutdown complete'` then `docker compose start app` | `Click buffer drained on shutdown: N events`, `Graceful shutdown complete` |
+
+Recovery summary: cache errors and flush failures need no action on the app (it degrades and
+recovers by itself); fix the database, then confirm `/readyz` is 200 and
+`urlshortener_clicks_dropped_total` stops increasing. Restart the app only if readiness stays 503
+while Postgres is healthy.
+
 ### Crash-loss window (URL-FR-7.6)
 Clicks wait in an in-memory buffer (capacity 10,000) for at most one flush interval (1 s). A crash
 loses at most the buffer contents. A graceful stop (SIGTERM, `docker compose stop`) drains the

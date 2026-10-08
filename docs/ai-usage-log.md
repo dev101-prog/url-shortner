@@ -71,3 +71,8 @@ perf run needs rate-limit/negative-cache overrides on a separate container.
 |---|---|---|---|---|
 | /readyz 503 uses the standard envelope (`NOT_READY`, details.checks.db=DOWN); human decision reconciling §5.2/§5.3; OpenAPI baseline change approved | FR-8.2, NFR-4.6 | HealthController, HealthIT, openapi-baseline.json (only /readyz changed), runbook, ADR 0009, quality report | `./mvnw -B verify` | PASS, 242 + 70 IT |
 | Portability: no bind mounts or host networking in documented tooling (`newman`/`k6` compose services under profile `test`, `postman/Dockerfile`, `perf/compose.perf.yml`, `scripts/postman.sh`, `scripts/k6.sh`, explicit app healthcheck); human decision | DOC-2, TEST-2 | docker-compose.yml, postman/Dockerfile, perf/compose.perf.yml, scripts, README, docs/perf/README.md, quality report | from the ~/Desktop checkout: compose up --build, `docker compose run --rm newman`, scripts/postman.sh, demo.sh, k6 smoke (hit and miss, 5 VUs, 15 s) | newman 49/49 twice, demo 16/16, k6 smoke exit 0 with 0 % errors |
+
+## 2026-10-08 - Phase 2 scenario B4 (branch chore/b4-tests-docs)
+| Scenario | PRD IDs | Files drafted by AI | Verification | Result | Sign-off |
+|---|---|---|---|---|---|
+| B4 tests + runbook | SCN-B4, TEST-1, DOC-2 | LinkValidatorEdgeCasesTest, GlobalExceptionHandlerUnitTest, LinkControllerUnitTest, ApiKeyAuthFilterPathTest, runbook failure-mode commands (all run), docs/scenarios/B4.md | `./mvnw -B clean verify`; runbook commands against compose | PASS, 251 + 70 IT; overall lines 99.491 -> 99.797 %, branches 95.71 -> 98.57 %, service branches 97.16 -> 97.87 %; PIT skipped (no approval) | tech lead: runbook review; PIT pending |
