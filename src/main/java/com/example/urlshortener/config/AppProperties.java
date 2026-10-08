@@ -97,6 +97,8 @@ public record AppProperties(
    * @param ipSalt HMAC salt for IP hashing (secret outside local)
    * @param botPatternsVersion version label of the bot pattern list
    * @param botPatterns case-insensitive user agent regexes
+   * @param flushRetryBackoff wait before the single flush retry (design §3.6: 200 ms)
+   * @param shutdownDrainTimeout maximum time to drain the buffer on shutdown (design §3.6: 10 s)
    */
   public record Analytics(
       @Positive int bufferCapacity,
@@ -104,7 +106,9 @@ public record AppProperties(
       @Positive int flushBatchSize,
       @NotBlank String ipSalt,
       @NotBlank String botPatternsVersion,
-      List<String> botPatterns) {
+      List<String> botPatterns,
+      @NotNull @DefaultValue("PT0.2S") Duration flushRetryBackoff,
+      @NotNull @DefaultValue("PT10S") Duration shutdownDrainTimeout) {
 
     /** Copies the pattern list; an absent list becomes empty. */
     public Analytics {

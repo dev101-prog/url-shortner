@@ -62,6 +62,8 @@ class AppPropertiesTest {
           assertThat(p.analytics().flushBatchSize()).isEqualTo(500);
           assertThat(p.analytics().ipSalt()).isEqualTo("change-me");
           assertThat(p.analytics().botPatternsVersion()).isEqualTo("2026-10-01");
+          assertThat(p.analytics().flushRetryBackoff()).isEqualTo(Duration.ofMillis(200));
+          assertThat(p.analytics().shutdownDrainTimeout()).isEqualTo(Duration.ofSeconds(10));
           assertThat(p.analytics().botPatterns())
               .hasSize(9)
               .contains("(?i)bot", "(?i)curl/", "(?i)facebookexternalhit");
@@ -115,7 +117,8 @@ class AppPropertiesTest {
     AppProperties.Links links =
         new AppProperties.Links(7, 5, null, 2048, Duration.ofDays(1), null, null);
     AppProperties.Analytics analytics =
-        new AppProperties.Analytics(1, Duration.ofSeconds(1), 1, "s", "v", null);
+        new AppProperties.Analytics(
+            1, Duration.ofSeconds(1), 1, "s", "v", null, Duration.ZERO, Duration.ofSeconds(1));
 
     assertThat(links.allowedSchemes()).isEmpty();
     assertThat(links.blockedDomains()).isEmpty();

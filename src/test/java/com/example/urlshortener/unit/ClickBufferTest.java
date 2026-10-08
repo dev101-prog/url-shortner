@@ -33,7 +33,9 @@ class ClickBufferTest {
             a.flushBatchSize(),
             a.ipSalt(),
             a.botPatternsVersion(),
-            a.botPatterns()),
+            a.botPatterns(),
+            a.flushRetryBackoff(),
+            a.shutdownDrainTimeout()),
         d.http());
   }
 
