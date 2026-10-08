@@ -54,7 +54,8 @@ class ClickFlushWorkerTest {
             a.botPatterns(),
             Duration.ZERO,
             a.shutdownDrainTimeout()),
-        d.http());
+        d.http(),
+        d.stats());
   }
 
   private void fill(int n) {

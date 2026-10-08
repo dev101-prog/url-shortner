@@ -98,6 +98,7 @@ public final class TestProperties {
             BOT_PATTERNS,
             Duration.ofMillis(200),
             Duration.ofSeconds(10)),
-        new AppProperties.Http(8192));
+        new AppProperties.Http(8192),
+        new AppProperties.Stats(30, 365));
   }
 }

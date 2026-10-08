@@ -3,10 +3,12 @@ package com.example.urlshortener.api;
 import com.example.urlshortener.api.dto.CreateLinkRequest;
 import com.example.urlshortener.api.dto.LinkMetadataResponse;
 import com.example.urlshortener.api.dto.LinkResponse;
+import com.example.urlshortener.api.dto.StatsResponse;
 import com.example.urlshortener.api.error.GlobalExceptionHandler;
 import com.example.urlshortener.api.filter.ApiKeyAuthFilter;
 import com.example.urlshortener.config.AppProperties;
 import com.example.urlshortener.service.LinkService;
+import com.example.urlshortener.service.StatsService;
 import com.example.urlshortener.service.domain.AuthenticatedOwner;
 import com.example.urlshortener.service.domain.CreateResult;
 import com.example.urlshortener.service.domain.Link;
@@ -15,8 +17,10 @@ import com.example.urlshortener.service.error.ErrorCode;
 import com.example.urlshortener.service.port.RateLimiter;
 import java.net.URI;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.Locale;
 import java.util.Map;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -25,6 +29,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestAttribute;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /** {@code /api/v1/links}: DTO mapping only; rules live in {@link LinkService} (design §3.1). */
@@ -33,6 +38,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class LinkController {
 
   private final LinkService links;
+  private final StatsService stats;
   private final RateLimiter rateLimiter;
   private final int createPerMinute;
   private final String baseUrl;
@@ -41,11 +47,14 @@ public class LinkController {
    * Creates the controller.
    *
    * @param links link service
+   * @param stats stats service
    * @param rateLimiter rate limiter
    * @param props application properties
    */
-  public LinkController(LinkService links, RateLimiter rateLimiter, AppProperties props) {
+  public LinkController(
+      LinkService links, StatsService stats, RateLimiter rateLimiter, AppProperties props) {
     this.links = links;
+    this.stats = stats;
     this.rateLimiter = rateLimiter;
     this.createPerMinute = props.rateLimit().createPerMinute();
     this.baseUrl =
@@ -126,6 +135,24 @@ public class LinkController {
       @PathVariable String code) {
     links.deactivate(owner, code);
     return ResponseEntity.noContent().build();
+  }
+
+  /**
+   * URL-FR-7.5 / 7.7: owner-only statistics over an inclusive UTC date range.
+   *
+   * @param owner authenticated caller
+   * @param code short code
+   * @param from first day (ISO date) or absent
+   * @param to last day (ISO date) or absent
+   * @return statistics
+   */
+  @GetMapping("/{code}/stats")
+  public StatsResponse stats(
+      @RequestAttribute(ApiKeyAuthFilter.OWNER_ATTRIBUTE) AuthenticatedOwner owner,
+      @PathVariable String code,
+      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+    return StatsResponse.from(stats.stats(owner, code, from, to));
   }
 
   private String shortUrl(Link link) {

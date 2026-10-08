@@ -21,6 +21,7 @@ import org.springframework.validation.annotation.Validated;
  * @param rateLimit rate limits
  * @param analytics click pipeline settings
  * @param http HTTP input limits (not in §7.3; defaults equal the design values)
+ * @param stats stats endpoint range rules (not in §7.3; defaults equal the design values)
  */
 @Validated
 @ConfigurationProperties(prefix = "app")
@@ -30,7 +31,8 @@ public record AppProperties(
     @NotNull @Valid Cache cache,
     @NotNull @Valid RateLimit rateLimit,
     @NotNull @Valid Analytics analytics,
-    @NotNull @Valid @DefaultValue Http http) {
+    @NotNull @Valid @DefaultValue Http http,
+    @NotNull @Valid @DefaultValue Stats stats) {
 
   /**
    * Link creation rules (URL-FR-1.x, 2.x, 4.x).
@@ -122,4 +124,13 @@ public record AppProperties(
    * @param maxBodyBytes maximum request body size in bytes (design §3.1: 8 KB)
    */
   public record Http(@Positive @DefaultValue("8192") int maxBodyBytes) {}
+
+  /**
+   * Stats range rules (URL-FR-7.5, design §5.3).
+   *
+   * @param defaultDays days covered when no range is given (last 30 days, inclusive of today)
+   * @param maxDays maximum inclusive span of a requested range
+   */
+  public record Stats(
+      @Positive @DefaultValue("30") int defaultDays, @Positive @DefaultValue("365") int maxDays) {}
 }

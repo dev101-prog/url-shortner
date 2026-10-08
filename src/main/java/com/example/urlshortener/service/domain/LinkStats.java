@@ -55,6 +55,15 @@ public record LinkStats(
   public record ReferrerClicks(String referrer, long clicks) {}
 
   /**
+   * Range-level aggregates.
+   *
+   * @param total all clicks
+   * @param bots clicks flagged as bot
+   * @param uniqueVisitors distinct IP hashes over the whole range
+   */
+  public record ClickTotals(long total, long bots, long uniqueVisitors) {}
+
+  /**
    * Clicks per country.
    *
    * @param country ISO-3166 alpha-2 code

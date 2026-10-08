@@ -54,6 +54,8 @@ class AppPropertiesTest {
           assertThat(p.cache().apiKeyTtl()).isEqualTo(Duration.ofSeconds(30));
           assertThat(p.cache().apiKeyMaxSize()).isEqualTo(10_000L);
           assertThat(p.http().maxBodyBytes()).isEqualTo(8192);
+          assertThat(p.stats().defaultDays()).isEqualTo(30);
+          assertThat(p.stats().maxDays()).isEqualTo(365);
           assertThat(p.rateLimit().createPerMinute()).isEqualTo(60);
           assertThat(p.rateLimit().redirectPerMinute()).isEqualTo(600);
           assertThat(p.rateLimit().maxBuckets()).isEqualTo(200_000L);

@@ -36,7 +36,8 @@ class ClickBufferTest {
             a.botPatterns(),
             a.flushRetryBackoff(),
             a.shutdownDrainTimeout()),
-        d.http());
+        d.http(),
+        d.stats());
   }
 
   @Test
