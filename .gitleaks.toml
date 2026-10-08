@@ -1,0 +1,17 @@
+# gitleaks configuration (gate G8, design §9.2). Extends the default rules; the allowlist only
+# covers the public, local-only demo/test values that the design requires in the repository.
+title = "url-shortener gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Local demo keys (design §4.4), their SHA-256 hashes, seeded HMAC IP hashes and test-only keys"
+regexes = [
+  '''demo-key-(alice-0001|bob-0002|revoked-0003)''',
+  '''test-key-[a-z0-9-]+''',
+  '''[0-9a-f]{64}''',
+]
+paths = [
+  '''docs/perf/.*\.json''',
+]

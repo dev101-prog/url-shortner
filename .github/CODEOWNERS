@@ -1,0 +1,8 @@
+# Design §10.5: high-impact areas need the tech lead / security reviewer (both @dev101-prog here).
+*                                          @dev101-prog
+/src/main/resources/db/                    @dev101-prog
+/src/main/java/**/filter/                  @dev101-prog
+/src/main/java/**/service/IpHasher.java    @dev101-prog
+/pom.xml                                   @dev101-prog
+/src/test/resources/openapi-baseline.json  @dev101-prog
+/config/spotbugs/                          @dev101-prog
