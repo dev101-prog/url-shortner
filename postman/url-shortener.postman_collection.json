@@ -1,0 +1,1037 @@
+{
+  "info": {
+    "name": "URL Shortener",
+    "_postman_id": "8f3b0c2e-0d6e-4c1b-9b7a-url-shortener",
+    "description": "CUJ-1..CUJ-4 and the \u00a75.2 error cases. Re-runnable: aliases and dedupe URLs are unique per run. Uses the local demo keys from design \u00a74.4.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1 Health",
+      "item": [
+        {
+          "name": "liveness /healthz",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/healthz",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "healthz"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"UP\", () => pm.expect(pm.response.json().status).to.eql(\"UP\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "readiness /readyz",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/readyz",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "readyz"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"db UP\", () => { const b = pm.response.json(); pm.expect(b.status).to.eql(\"UP\"); pm.expect(b.checks.db).to.eql(\"UP\"); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2 Create",
+      "item": [
+        {
+          "name": "create random code (201)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{aliceKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/links",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "links"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"url\":\"https://openjdk.org/projects/jdk/21/\"}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 201\", () => pm.response.to.have.status(201));",
+                  "const b = pm.response.json();",
+                  "pm.test(\"7-char base62 code\", () => pm.expect(b.code).to.match(/^[A-Za-z0-9]{7}$/));",
+                  "pm.test(\"Location header\", () => pm.expect(pm.response.headers.get(\"Location\")).to.eql(\"/api/v1/links/\" + b.code));",
+                  "pm.test(\"body fields\", () => { pm.expect(b.status).to.eql(\"active\"); pm.expect(b.target).to.eql(\"https://openjdk.org/projects/jdk/21/\"); pm.expect(b.short_url).to.include(b.code); pm.expect(b).to.have.property(\"expires_at\"); pm.expect(b).to.have.property(\"created_at\"); });",
+                  "pm.collectionVariables.set(\"code\", b.code);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "create custom alias (201)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{aliceKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/links",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "links"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"url\":\"https://example.org/promo\",\"alias\":\"{{alias}}\",\"expires_at\":\"{{expiresAt}}\"}"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// unique alias per run so the collection is re-runnable",
+                  "pm.collectionVariables.set(\"alias\", \"pm-\" + Date.now() + \"-\" + Math.floor(Math.random() * 1e4));",
+                  "pm.collectionVariables.set(\"expiresAt\", new Date(Date.now() + 30 * 86400000).toISOString());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 201\", () => pm.response.to.have.status(201));",
+                  "pm.test(\"alias is the code\", () => pm.expect(pm.response.json().code).to.eql(pm.collectionVariables.get(\"alias\")));",
+                  "pm.test(\"expiry stored\", () => pm.expect(pm.response.json().expires_at).to.be.a(\"string\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "dedupe: first create (201)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{aliceKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/links",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "links"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"url\":\"{{dedupeUrl}}\",\"dedupe\":true}"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set(\"dedupeUrl\", \"https://example.org/pm/dedupe/\" + Date.now());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 201\", () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set(\"dedupeCode\", pm.response.json().code);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "dedupe: same URL returns existing (200)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{aliceKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/links",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "links"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"url\":\"{{dedupeUrl}}\",\"dedupe\":true}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"same code\", () => pm.expect(pm.response.json().code).to.eql(pm.collectionVariables.get(\"dedupeCode\")));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "3 Redirect, metadata, stats",
+      "item": [
+        {
+          "name": "redirect (302, not followed)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/{{code}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{code}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 302\", () => pm.response.to.have.status(302));",
+                  "pm.test(\"Location is the target\", () => pm.expect(pm.response.headers.get(\"Location\")).to.eql(\"https://openjdk.org/projects/jdk/21/\"));",
+                  "pm.test(\"no-store headers\", () => pm.expect(pm.response.headers.get(\"Cache-Control\")).to.eql(\"private, no-cache, no-store, max-age=0\"));"
+                ]
+              }
+            }
+          ],
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          }
+        },
+        {
+          "name": "metadata (200)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{aliceKey}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/links/{{code}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "links",
+                "{{code}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// give the click flush (1 s interval) time to run",
+                  "setTimeout(() => {}, 1500);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test(\"metadata fields\", () => { pm.expect(b.code).to.eql(pm.collectionVariables.get(\"code\")); pm.expect(b.status).to.eql(\"active\"); pm.expect(b.total_clicks).to.be.at.least(0); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "stats for seeded aB3dE7x (200)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{aliceKey}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/links/aB3dE7x/stats",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "links",
+                "aB3dE7x",
+                "stats"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test(\"seeded totals\", () => { pm.expect(b.total_clicks).to.be.at.least(6); pm.expect(b.bot_clicks).to.be.at.least(2); pm.expect(b.human_clicks).to.eql(b.total_clicks - b.bot_clicks); });",
+                  "pm.test(\"30 zero-filled days\", () => pm.expect(b.clicks_per_day).to.have.lengthOf(30));",
+                  "pm.test(\"referrers and countries\", () => { pm.expect(b.top_referrers).to.be.an(\"array\").that.is.not.empty; pm.expect(b.top_countries).to.be.an(\"array\"); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "4 Error cases",
+      "item": [
+        {
+          "name": "401 missing key",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/links",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "links"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"url\":\"https://a.io\"}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 401\", () => pm.response.to.have.status(401));",
+                  "pm.test(\"error envelope with code UNAUTHORIZED\", () => {",
+                  "  const b = pm.response.json();",
+                  "  pm.expect(b.error.code).to.eql(\"UNAUTHORIZED\");",
+                  "  pm.expect(b.error.message).to.be.a(\"string\").and.not.empty;",
+                  "  pm.expect(b.error).to.have.property(\"details\");",
+                  "  pm.expect(JSON.stringify(b)).to.not.include(\"Exception\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "401 revoked key",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{revokedKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/links",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "links"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"url\":\"https://a.io\"}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 401\", () => pm.response.to.have.status(401));",
+                  "pm.test(\"error envelope with code UNAUTHORIZED\", () => {",
+                  "  const b = pm.response.json();",
+                  "  pm.expect(b.error.code).to.eql(\"UNAUTHORIZED\");",
+                  "  pm.expect(b.error.message).to.be.a(\"string\").and.not.empty;",
+                  "  pm.expect(b.error).to.have.property(\"details\");",
+                  "  pm.expect(JSON.stringify(b)).to.not.include(\"Exception\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "404 not owner (bob-blog as alice)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{aliceKey}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/links/bob-blog",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "links",
+                "bob-blog"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"error envelope with code NOT_FOUND\", () => {",
+                  "  const b = pm.response.json();",
+                  "  pm.expect(b.error.code).to.eql(\"NOT_FOUND\");",
+                  "  pm.expect(b.error.message).to.be.a(\"string\").and.not.empty;",
+                  "  pm.expect(b.error).to.have.property(\"details\");",
+                  "  pm.expect(JSON.stringify(b)).to.not.include(\"Exception\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "404 unknown code (metadata)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{aliceKey}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/links/noSuchCode1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "links",
+                "noSuchCode1"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"error envelope with code NOT_FOUND\", () => {",
+                  "  const b = pm.response.json();",
+                  "  pm.expect(b.error.code).to.eql(\"NOT_FOUND\");",
+                  "  pm.expect(b.error.message).to.be.a(\"string\").and.not.empty;",
+                  "  pm.expect(b.error).to.have.property(\"details\");",
+                  "  pm.expect(JSON.stringify(b)).to.not.include(\"Exception\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "409 alias conflict (bob reuses alias)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{bobKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/links",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "links"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"url\":\"https://example.org/x\",\"alias\":\"{{alias}}\"}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"error envelope with code ALIAS_CONFLICT\", () => {",
+                  "  const b = pm.response.json();",
+                  "  pm.expect(b.error.code).to.eql(\"ALIAS_CONFLICT\");",
+                  "  pm.expect(b.error.message).to.be.a(\"string\").and.not.empty;",
+                  "  pm.expect(b.error).to.have.property(\"details\");",
+                  "  pm.expect(JSON.stringify(b)).to.not.include(\"Exception\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "410 expired Xy9Kp2Q",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/Xy9Kp2Q",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "Xy9Kp2Q"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 410\", () => pm.response.to.have.status(410));",
+                  "pm.test(\"error envelope with code LINK_EXPIRED\", () => {",
+                  "  const b = pm.response.json();",
+                  "  pm.expect(b.error.code).to.eql(\"LINK_EXPIRED\");",
+                  "  pm.expect(b.error.message).to.be.a(\"string\").and.not.empty;",
+                  "  pm.expect(b.error).to.have.property(\"details\");",
+                  "  pm.expect(JSON.stringify(b)).to.not.include(\"Exception\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "404 inactive Qm4Rt8Z",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/Qm4Rt8Z",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "Qm4Rt8Z"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"error envelope with code NOT_FOUND\", () => {",
+                  "  const b = pm.response.json();",
+                  "  pm.expect(b.error.code).to.eql(\"NOT_FOUND\");",
+                  "  pm.expect(b.error.message).to.be.a(\"string\").and.not.empty;",
+                  "  pm.expect(b.error).to.have.property(\"details\");",
+                  "  pm.expect(JSON.stringify(b)).to.not.include(\"Exception\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "422 reserved alias (Docs)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{aliceKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/links",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "links"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"url\":\"https://example.org/x\",\"alias\":\"Docs\"}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 422\", () => pm.response.to.have.status(422));",
+                  "pm.test(\"error envelope with code RESERVED_ALIAS\", () => {",
+                  "  const b = pm.response.json();",
+                  "  pm.expect(b.error.code).to.eql(\"RESERVED_ALIAS\");",
+                  "  pm.expect(b.error.message).to.be.a(\"string\").and.not.empty;",
+                  "  pm.expect(b.error).to.have.property(\"details\");",
+                  "  pm.expect(JSON.stringify(b)).to.not.include(\"Exception\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "422 bad scheme",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{aliceKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/links",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "links"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"url\":\"javascript:alert(1)\"}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 422\", () => pm.response.to.have.status(422));",
+                  "pm.test(\"error envelope with code INVALID_URL\", () => {",
+                  "  const b = pm.response.json();",
+                  "  pm.expect(b.error.code).to.eql(\"INVALID_URL\");",
+                  "  pm.expect(b.error.message).to.be.a(\"string\").and.not.empty;",
+                  "  pm.expect(b.error).to.have.property(\"details\");",
+                  "  pm.expect(JSON.stringify(b)).to.not.include(\"Exception\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "422 unknown field",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{aliceKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/links",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "links"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"url\":\"https://a.io\",\"owner_id\":2}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 422\", () => pm.response.to.have.status(422));",
+                  "pm.test(\"error envelope with code VALIDATION_FAILED\", () => {",
+                  "  const b = pm.response.json();",
+                  "  pm.expect(b.error.code).to.eql(\"VALIDATION_FAILED\");",
+                  "  pm.expect(b.error.message).to.be.a(\"string\").and.not.empty;",
+                  "  pm.expect(b.error).to.have.property(\"details\");",
+                  "  pm.expect(JSON.stringify(b)).to.not.include(\"Exception\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "413 oversized body (> 8 KB)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{aliceKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/links",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "links"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{{bigBody}}"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set(\"bigBody\", JSON.stringify({ url: \"https://example.org/\" + \"a\".repeat(9000) }));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 413\", () => pm.response.to.have.status(413));",
+                  "pm.test(\"error envelope with code PAYLOAD_TOO_LARGE\", () => {",
+                  "  const b = pm.response.json();",
+                  "  pm.expect(b.error.code).to.eql(\"PAYLOAD_TOO_LARGE\");",
+                  "  pm.expect(b.error.message).to.be.a(\"string\").and.not.empty;",
+                  "  pm.expect(b.error).to.have.property(\"details\");",
+                  "  pm.expect(JSON.stringify(b)).to.not.include(\"Exception\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "5 Deactivate",
+      "item": [
+        {
+          "name": "deactivate (204)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{aliceKey}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/links/{{code}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "links",
+                "{{code}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 204\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "deactivate again is idempotent (204)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{aliceKey}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/links/{{code}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "links",
+                "{{code}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 204\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "redirect after deactivate (404)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/{{code}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{code}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"error envelope with code NOT_FOUND\", () => {",
+                  "  const b = pm.response.json();",
+                  "  pm.expect(b.error.code).to.eql(\"NOT_FOUND\");",
+                  "  pm.expect(b.error.message).to.be.a(\"string\").and.not.empty;",
+                  "  pm.expect(b.error).to.have.property(\"details\");",
+                  "  pm.expect(JSON.stringify(b)).to.not.include(\"Exception\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "code",
+      "value": ""
+    },
+    {
+      "key": "alias",
+      "value": ""
+    },
+    {
+      "key": "expiresAt",
+      "value": ""
+    },
+    {
+      "key": "dedupeUrl",
+      "value": ""
+    },
+    {
+      "key": "dedupeCode",
+      "value": ""
+    },
+    {
+      "key": "bigBody",
+      "value": ""
+    }
+  ]
+}
