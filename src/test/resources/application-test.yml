@@ -3,6 +3,12 @@
 spring:
   flyway:
     clean-disabled: false
+  datasource:
+    hikari:
+      # Spring caches one context per distinct test configuration, each with its own pool; keep
+      # them small so all cached contexts fit within the test container's max_connections.
+      maximum-pool-size: 5
+      minimum-idle: 1
 app:
   analytics:
     ip-salt: test-salt

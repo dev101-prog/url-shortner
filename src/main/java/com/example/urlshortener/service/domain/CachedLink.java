@@ -10,4 +10,16 @@ import java.time.Instant;
  * @param status persisted status
  * @param expiresAt expiry time, or {@code null} for never
  */
-public record CachedLink(long linkId, String targetUrl, LinkStatus status, Instant expiresAt) {}
+public record CachedLink(long linkId, String targetUrl, LinkStatus status, Instant expiresAt) {
+
+  /**
+   * URL-FR-4.3: same rule as {@link Link#effectiveStatus(Instant)}, so cache hits and DB reads
+   * cannot disagree.
+   *
+   * @param now current instant from the injected clock
+   * @return the effective status at {@code now}
+   */
+  public EffectiveStatus effectiveStatus(Instant now) {
+    return EffectiveStatus.evaluate(status, expiresAt, now);
+  }
+}

@@ -26,7 +26,9 @@ public final class PostgresContainerSupport {
   private static final Pattern DB_NAME = Pattern.compile("^[a-z_][a-z0-9_]{0,62}$");
 
   private static final PostgreSQLContainer<?> POSTGRES =
-      new PostgreSQLContainer<>(IMAGE).withDatabaseName("urlshortener");
+      new PostgreSQLContainer<>(IMAGE)
+          .withDatabaseName("urlshortener")
+          .withCommand("postgres", "-c", "max_connections=300");
 
   private PostgresContainerSupport() {}
 

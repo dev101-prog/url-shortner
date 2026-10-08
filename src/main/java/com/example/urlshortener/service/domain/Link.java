@@ -48,12 +48,6 @@ public record Link(
    * @return the effective status at {@code now}
    */
   public EffectiveStatus effectiveStatus(Instant now) {
-    if (status == LinkStatus.INACTIVE) {
-      return EffectiveStatus.INACTIVE;
-    }
-    if (expiresAt != null && !now.isBefore(expiresAt)) {
-      return EffectiveStatus.EXPIRED;
-    }
-    return EffectiveStatus.ACTIVE;
+    return EffectiveStatus.evaluate(status, expiresAt, now);
   }
 }
