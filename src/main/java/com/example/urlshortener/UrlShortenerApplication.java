@@ -2,9 +2,11 @@ package com.example.urlshortener;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
 
 /** Entry point of the URL shortener service (design §7.1). */
 @SpringBootApplication
+@ConfigurationPropertiesScan
 public class UrlShortenerApplication {
 
   /**
