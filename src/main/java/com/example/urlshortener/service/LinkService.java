@@ -9,10 +9,10 @@ import com.example.urlshortener.service.domain.EffectiveStatus;
 import com.example.urlshortener.service.domain.Link;
 import com.example.urlshortener.service.error.ApiException;
 import com.example.urlshortener.service.error.ErrorCode;
+import com.example.urlshortener.service.port.CodeGenerator;
 import com.example.urlshortener.service.port.LinkCache;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
-import java.security.SecureRandom;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.Map;
@@ -26,16 +26,13 @@ import org.springframework.stereotype.Service;
 public final class LinkService {
 
   private static final Logger LOG = LoggerFactory.getLogger(LinkService.class);
-  private static final String ALPHABET =
-      "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 
   private final LinkRepository links;
   private final LinkValidator validator;
   private final UrlNormalizer normalizer;
   private final LinkCache cache;
   private final Clock clock;
-  private final SecureRandom random;
-  private final int codeLength;
+  private final CodeGenerator codes;
   private final int maxAttempts;
   private final Counter codegenRetries;
   private final Counter codegenExhausted;
@@ -49,7 +46,7 @@ public final class LinkService {
    * @param cache link cache
    * @param props application properties
    * @param clock application clock
-   * @param random CSPRNG for codes (URL-FR-1.2)
+   * @param codes candidate code source (URL-FR-1.2; scenario B3)
    * @param meters meter registry
    */
   public LinkService(
@@ -59,15 +56,14 @@ public final class LinkService {
       LinkCache cache,
       AppProperties props,
       Clock clock,
-      SecureRandom random,
+      CodeGenerator codes,
       MeterRegistry meters) {
     this.links = links;
     this.validator = validator;
     this.normalizer = normalizer;
     this.cache = cache;
     this.clock = clock;
-    this.random = random;
-    this.codeLength = props.links().codeLength();
+    this.codes = codes;
     this.maxAttempts = props.links().maxCodegenAttempts();
     this.codegenRetries = meters.counter("urlshortener.codegen.retries");
     this.codegenExhausted = meters.counter("urlshortener.codegen.exhausted");
@@ -165,7 +161,7 @@ public final class LinkService {
       AuthenticatedOwner owner, String url, String normalized, Instant expiresAt) {
     for (int attempt = 1; attempt <= maxAttempts; attempt++) {
       Optional<Link> inserted =
-          links.insertIfCodeFree(randomCode(), owner.ownerId(), url, normalized, false, expiresAt);
+          links.insertIfCodeFree(codes.next(), owner.ownerId(), url, normalized, false, expiresAt);
       if (inserted.isPresent()) {
         return inserted.get();
       }
@@ -174,14 +170,6 @@ public final class LinkService {
     codegenExhausted.increment();
     LOG.warn("Code generation exhausted after {} attempts", maxAttempts);
     throw new ApiException(ErrorCode.CODE_GENERATION_EXHAUSTED);
-  }
-
-  private String randomCode() {
-    StringBuilder code = new StringBuilder(codeLength);
-    for (int i = 0; i < codeLength; i++) {
-      code.append(ALPHABET.charAt(random.nextInt(ALPHABET.length())));
-    }
-    return code.toString();
   }
 
   private static CachedLink toCached(Link link) {

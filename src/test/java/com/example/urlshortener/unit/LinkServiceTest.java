@@ -15,6 +15,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import com.example.urlshortener.infra.RandomBase62CodeGenerator;
 import com.example.urlshortener.repository.LinkRepository;
 import com.example.urlshortener.service.LinkService;
 import com.example.urlshortener.service.LinkValidator;
@@ -27,6 +28,7 @@ import com.example.urlshortener.service.domain.Link;
 import com.example.urlshortener.service.domain.LinkStatus;
 import com.example.urlshortener.service.error.ApiException;
 import com.example.urlshortener.service.error.ErrorCode;
+import com.example.urlshortener.service.port.CodeGenerator;
 import com.example.urlshortener.service.port.LinkCache;
 import com.example.urlshortener.support.MutableClock;
 import com.example.urlshortener.support.TestProperties;
@@ -34,7 +36,7 @@ import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
@@ -61,12 +63,27 @@ class LinkServiceTest {
           cache,
           TestProperties.defaults(),
           clock,
-          new SecureRandom(),
+          new RandomBase62CodeGenerator(new SecureRandom(), 7),
           meters);
 
   private static Link link(String code, long ownerId, boolean alias, Instant expiresAt) {
     return new Link(
         42L, code, ownerId, URL, NORMALIZED, alias, LinkStatus.ACTIVE, NOW, expiresAt, null, 3L);
+  }
+
+  /** B3: a stub {@link CodeGenerator} returning fixed codes in order. */
+  private LinkService withCodes(String... codes) {
+    Iterator<String> next = List.of(codes).iterator();
+    CodeGenerator stub = next::next;
+    return new LinkService(
+        repo,
+        new LinkValidator(TestProperties.defaults()),
+        new UrlNormalizer(),
+        cache,
+        TestProperties.defaults(),
+        clock,
+        stub,
+        meters);
   }
 
   private double counter(String name) {
@@ -90,30 +107,30 @@ class LinkServiceTest {
 
   @Test
   void fr1_2_retriesOnCollisionThenSucceeds() {
-    List<String> tried = new ArrayList<>();
-    when(repo.insertIfCodeFree(anyString(), anyLong(), any(), any(), eq(false), any()))
-        .thenAnswer(
-            inv -> {
-              tried.add(inv.getArgument(0));
-              return tried.size() < 3
-                  ? Optional.empty()
-                  : Optional.of(link(inv.getArgument(0), 1L, false, null));
-            });
+    LinkService stubbed = withCodes("Coll001", "Coll002", "Free003");
+    when(repo.insertIfCodeFree(eq("Free003"), anyLong(), any(), any(), eq(false), any()))
+        .thenAnswer(inv -> Optional.of(link("Free003", 1L, false, null)));
+    when(repo.insertIfCodeFree(eq("Coll001"), anyLong(), any(), any(), eq(false), any()))
+        .thenReturn(Optional.empty());
+    when(repo.insertIfCodeFree(eq("Coll002"), anyLong(), any(), any(), eq(false), any()))
+        .thenReturn(Optional.empty());
 
-    CreateResult result = service.create(ALICE, URL, null, null, false);
+    CreateResult result = stubbed.create(ALICE, URL, null, null, false);
 
-    assertThat(result.link().code()).isEqualTo(tried.get(2));
-    assertThat(tried).hasSize(3);
+    assertThat(result.link().code()).isEqualTo("Free003");
+    verify(repo, times(3)).insertIfCodeFree(anyString(), anyLong(), any(), any(), eq(false), any());
     assertThat(counter("urlshortener.codegen.retries")).isEqualTo(2.0);
     assertThat(counter("urlshortener.codegen.exhausted")).isZero();
   }
 
   @Test
   void fr1_2_exhaustsAfter5() {
+    LinkService stubbed =
+        withCodes("Coll001", "Coll002", "Coll003", "Coll004", "Coll005", "Never06");
     when(repo.insertIfCodeFree(anyString(), anyLong(), any(), any(), anyBoolean(), any()))
         .thenReturn(Optional.empty());
 
-    assertThatThrownBy(() -> service.create(ALICE, URL, null, null, false))
+    assertThatThrownBy(() -> stubbed.create(ALICE, URL, null, null, false))
         .isInstanceOfSatisfying(
             ApiException.class,
             e -> {
@@ -121,6 +138,8 @@ class LinkServiceTest {
               assertThat(e.code().httpStatus()).isEqualTo(503);
             });
     verify(repo, times(5)).insertIfCodeFree(anyString(), anyLong(), any(), any(), eq(false), any());
+    verify(repo, never())
+        .insertIfCodeFree(eq("Never06"), anyLong(), any(), any(), anyBoolean(), any());
     assertThat(counter("urlshortener.codegen.exhausted")).isEqualTo(1.0);
     verifyNoInteractions(cache);
   }
