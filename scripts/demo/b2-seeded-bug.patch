@@ -1,0 +1,57 @@
+diff --git a/src/main/java/com/example/urlshortener/service/RedirectService.java b/src/main/java/com/example/urlshortener/service/RedirectService.java
+index e2b8c05..7c03ff5 100644
+--- a/src/main/java/com/example/urlshortener/service/RedirectService.java
++++ b/src/main/java/com/example/urlshortener/service/RedirectService.java
+@@ -5,6 +5,7 @@ import com.example.urlshortener.repository.LinkRepository;
+ import com.example.urlshortener.service.domain.CachedLink;
+ import com.example.urlshortener.service.domain.ClickEvent;
+ import com.example.urlshortener.service.domain.Link;
++import com.example.urlshortener.service.domain.LinkStatus;
+ import com.example.urlshortener.service.domain.RedirectResult;
+ import com.example.urlshortener.service.port.ClickSink;
+ import com.example.urlshortener.service.port.LinkCache;
+@@ -96,10 +97,16 @@ public final class RedirectService {
+       return new RedirectResult.RateLimited(denied.retryAfterSeconds());
+     }
+ 
++    Instant now = clock.instant();
+     Optional<CachedLink> hit = cache.get(code);
+     CachedLink link;
+     if (hit.isPresent()) {
+-      link = hit.get();
++      CachedLink cached = hit.get();
++      // BUGGY (seeded): cache-hit path collapses EXPIRED into NOT_FOUND
++      if (cached.status() == LinkStatus.INACTIVE || cached.isExpired(now)) {
++        return new RedirectResult.NotFound();
++      }
++      link = cached;
+     } else {
+       if (cache.isKnownMissing(code)) {
+         return new RedirectResult.NotFound();
+@@ -114,7 +121,6 @@ public final class RedirectService {
+       cache.put(code, link);
+     }
+ 
+-    Instant now = clock.instant();
+     return switch (link.effectiveStatus(now)) {
+       case INACTIVE -> new RedirectResult.NotFound();
+       case EXPIRED -> new RedirectResult.Gone();
+diff --git a/src/main/java/com/example/urlshortener/service/domain/CachedLink.java b/src/main/java/com/example/urlshortener/service/domain/CachedLink.java
+index 31c7f2c..6151fb7 100644
+--- a/src/main/java/com/example/urlshortener/service/domain/CachedLink.java
++++ b/src/main/java/com/example/urlshortener/service/domain/CachedLink.java
+@@ -22,4 +22,14 @@ public record CachedLink(long linkId, String targetUrl, LinkStatus status, Insta
+   public EffectiveStatus effectiveStatus(Instant now) {
+     return EffectiveStatus.evaluate(status, expiresAt, now);
+   }
++
++  /**
++   * Whether the entry is past its expiry (seeded defect B2: a second copy of the status rule).
++   *
++   * @param now current instant
++   * @return true when expired
++   */
++  public boolean isExpired(Instant now) {
++    return expiresAt != null && !now.isBefore(expiresAt);
++  }
+ }

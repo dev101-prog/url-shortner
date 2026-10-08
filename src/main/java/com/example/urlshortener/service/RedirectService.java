@@ -5,6 +5,7 @@ import com.example.urlshortener.repository.LinkRepository;
 import com.example.urlshortener.service.domain.CachedLink;
 import com.example.urlshortener.service.domain.ClickEvent;
 import com.example.urlshortener.service.domain.Link;
+import com.example.urlshortener.service.domain.LinkStatus;
 import com.example.urlshortener.service.domain.RedirectResult;
 import com.example.urlshortener.service.port.ClickSink;
 import com.example.urlshortener.service.port.LinkCache;
@@ -96,10 +97,16 @@ public final class RedirectService {
       return new RedirectResult.RateLimited(denied.retryAfterSeconds());
     }
 
+    Instant now = clock.instant();
     Optional<CachedLink> hit = cache.get(code);
     CachedLink link;
     if (hit.isPresent()) {
-      link = hit.get();
+      CachedLink cached = hit.get();
+      // BUGGY (seeded): cache-hit path collapses EXPIRED into NOT_FOUND
+      if (cached.status() == LinkStatus.INACTIVE || cached.isExpired(now)) {
+        return new RedirectResult.NotFound();
+      }
+      link = cached;
     } else {
       if (cache.isKnownMissing(code)) {
         return new RedirectResult.NotFound();
@@ -114,7 +121,6 @@ public final class RedirectService {
       cache.put(code, link);
     }
 
-    Instant now = clock.instant();
     return switch (link.effectiveStatus(now)) {
       case INACTIVE -> new RedirectResult.NotFound();
       case EXPIRED -> new RedirectResult.Gone();

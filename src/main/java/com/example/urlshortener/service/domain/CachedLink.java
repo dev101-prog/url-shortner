@@ -22,4 +22,14 @@ public record CachedLink(long linkId, String targetUrl, LinkStatus status, Insta
   public EffectiveStatus effectiveStatus(Instant now) {
     return EffectiveStatus.evaluate(status, expiresAt, now);
   }
+
+  /**
+   * Whether the entry is past its expiry (seeded defect B2: a second copy of the status rule).
+   *
+   * @param now current instant
+   * @return true when expired
+   */
+  public boolean isExpired(Instant now) {
+    return expiresAt != null && !now.isBefore(expiresAt);
+  }
 }
