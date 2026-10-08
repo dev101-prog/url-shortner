@@ -5,6 +5,8 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.time.Duration;
 import java.util.List;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -35,6 +37,51 @@ public record AppProperties(
     @NotNull @Valid @DefaultValue Http http,
     @NotNull @Valid @DefaultValue Stats stats,
     @NotNull @Valid @DefaultValue Health health) {
+
+  /** Fails binding (and so startup) on a base URL that would break the self-redirect check. */
+  public AppProperties {
+    if (baseUrl != null) {
+      requireValidBaseUrl(baseUrl);
+    }
+  }
+
+  /**
+   * URL-NFR-4.7 (finding F1): the base URL must be an absolute http(s) URL with a host and no path,
+   * query, fragment or credentials. Without a host, {@code LinkValidator} cannot recognise links
+   * back to this service, so the self-redirect check would silently turn off.
+   *
+   * @param baseUrl configured {@code app.base-url}
+   * @throws IllegalArgumentException if the value is not a valid base URL
+   */
+  public static void requireValidBaseUrl(String baseUrl) {
+    URI uri;
+    try {
+      uri = new URI(baseUrl);
+    } catch (URISyntaxException e) {
+      throw invalidBaseUrl(baseUrl);
+    }
+    String scheme = uri.getScheme();
+    String path = uri.getRawPath();
+    boolean valid =
+        ("http".equalsIgnoreCase(scheme) || "https".equalsIgnoreCase(scheme))
+            && uri.getHost() != null
+            && !uri.getHost().isBlank()
+            && uri.getRawUserInfo() == null
+            && uri.getRawQuery() == null
+            && uri.getRawFragment() == null
+            && (path == null || path.isEmpty() || "/".equals(path));
+    if (!valid) {
+      throw invalidBaseUrl(baseUrl);
+    }
+  }
+
+  private static IllegalArgumentException invalidBaseUrl(String baseUrl) {
+    return new IllegalArgumentException(
+        "app.base-url (APP_BASE_URL) must be an absolute http(s) URL with a host and no path,"
+            + " e.g. https://sho.rt, got '"
+            + baseUrl
+            + "'");
+  }
 
   /**
    * Link creation rules (URL-FR-1.x, 2.x, 4.x).

@@ -71,9 +71,23 @@ public final class TestProperties {
     return create(List.of(), "test-salt");
   }
 
+  /**
+   * Design defaults with the given base URL.
+   *
+   * @param baseUrl {@code app.base-url}
+   * @return properties
+   */
+  public static AppProperties withBaseUrl(String baseUrl) {
+    return create("test-salt", List.of(), baseUrl);
+  }
+
   private static AppProperties create(List<String> blockedDomains, String ipSalt) {
+    return create(ipSalt, blockedDomains, "http://localhost:8080");
+  }
+
+  private static AppProperties create(String ipSalt, List<String> blockedDomains, String baseUrl) {
     return new AppProperties(
-        "http://localhost:8080",
+        baseUrl,
         new AppProperties.Links(
             7,
             5,

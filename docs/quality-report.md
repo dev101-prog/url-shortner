@@ -87,6 +87,7 @@ Thresholds and code were not tuned to pass.
 | 16 | `scripts/demo.sh` uses a unique alias per run and an expiry relative to today (re-runnable) | requested by the coordinator |
 | 17 | Test-only infrastructure: Hikari pool capped at 5 in the test profile; the test container allows 300 connections | test configuration only |
 | 18 | `docker-compose.yml` beyond §7.2: an explicit `app` healthcheck (same probe as the Dockerfile `HEALTHCHECK`) and `newman` / `k6` services under the `test` profile; perf overrides in `perf/compose.perf.yml`; no bind mounts or host networking in any documented command | human decision (portability, 2026-10-08) |
+| 19 | Finding F1 fixed: `app.base-url` must be an absolute http(s) URL with a host and no path, query, fragment or credentials, checked when `AppProperties` binds, so startup fails instead of silently disabling the self-redirect check; `LinkValidator` also refuses a hostless base URL | human decision (2026-10-08) |
 
 ## Open items
 - NFR-1 latency targets not met on the laptop. Re-run on the reference environment, agree on think

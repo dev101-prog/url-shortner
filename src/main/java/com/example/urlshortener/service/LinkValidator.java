@@ -42,7 +42,12 @@ public final class LinkValidator {
     this.allowedSchemeSet = Set.copyOf(allowedSchemes);
     this.blockedDomains = lowerSet(props.links().blockedDomains());
     this.reservedWords = lowerSet(props.links().reservedWords());
-    this.selfHost = lower(URI.create(props.baseUrl()).getHost());
+    String host = URI.create(props.baseUrl()).getHost();
+    if (host == null || host.isBlank()) {
+      // Finding F1: never run with the self-redirect check silently disabled.
+      throw new IllegalStateException("app.base-url must contain a host");
+    }
+    this.selfHost = lower(host);
   }
 
   /**
