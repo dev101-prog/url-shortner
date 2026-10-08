@@ -8,7 +8,7 @@ import java.time.OffsetDateTime;
  * @param url target URL (required)
  * @param alias optional custom alias
  * @param expiresAt optional ISO-8601 expiry with an offset
- * @param dedupe opt-in dedupe, default {@code false}
+ * @param dedupe opt-in dedupe; {@code null} (absent) uses the owner's default (URL-FR-1.4, B1)
  */
 public record CreateLinkRequest(
-    String url, String alias, OffsetDateTime expiresAt, boolean dedupe) {}
+    String url, String alias, OffsetDateTime expiresAt, Boolean dedupe) {}

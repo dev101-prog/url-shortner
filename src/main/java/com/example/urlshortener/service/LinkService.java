@@ -81,18 +81,19 @@ public final class LinkService {
    * @param url target URL
    * @param alias custom alias or {@code null}
    * @param expiresAt expiry or {@code null}
-   * @param dedupe opt-in dedupe flag; ignored when an alias is given (design §3.3)
+   * @param dedupe request dedupe flag; {@code null} means "use the owner's default" (B1, PRD A4);
+   *     ignored when an alias is given (design §3.3)
    * @return {@link CreateResult.Created} or {@link CreateResult.Existing}
    */
   public CreateResult create(
-      AuthenticatedOwner owner, String url, String alias, Instant expiresAt, boolean dedupe) {
+      AuthenticatedOwner owner, String url, String alias, Instant expiresAt, Boolean dedupe) {
     Instant now = clock.instant();
     validator.validateUrl(url);
     validator.validateAlias(alias);
     validator.validateExpiry(expiresAt, now);
     String normalized = normalizer.normalize(url);
 
-    if (dedupe && alias == null) {
+    if (alias == null && effectiveDedupe(owner, dedupe)) {
       Optional<Link> existing =
           links.findDedupeCandidate(owner.ownerId(), normalized, expiresAt, now);
       if (existing.isPresent()) {
@@ -146,6 +147,17 @@ public final class LinkService {
     // only DB-sourced values are logged; the path variable is caller-controlled (CRLF injection)
     LOG.debug("Deactivate link id {}: {} row(s) updated", link.id(), updated);
     cache.evict(link.code());
+  }
+
+  /**
+   * URL-FR-1.4 / B1: the request flag, when present, overrides the owner's default (PRD A4).
+   *
+   * @param owner authenticated caller
+   * @param requested request flag or {@code null}
+   * @return whether to dedupe
+   */
+  private boolean effectiveDedupe(AuthenticatedOwner owner, Boolean requested) {
+    return requested != null ? requested : links.ownerDedupeDefault(owner.ownerId());
   }
 
   private Link insertAlias(

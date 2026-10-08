@@ -71,3 +71,8 @@ perf run needs rate-limit/negative-cache overrides on a separate container.
 |---|---|---|---|---|
 | /readyz 503 uses the standard envelope (`NOT_READY`, details.checks.db=DOWN); human decision reconciling §5.2/§5.3; OpenAPI baseline change approved | FR-8.2, NFR-4.6 | HealthController, HealthIT, openapi-baseline.json (only /readyz changed), runbook, ADR 0009, quality report | `./mvnw -B verify` | PASS, 242 + 70 IT |
 | Portability: no bind mounts or host networking in documented tooling (`newman`/`k6` compose services under profile `test`, `postman/Dockerfile`, `perf/compose.perf.yml`, `scripts/postman.sh`, `scripts/k6.sh`, explicit app healthcheck); human decision | DOC-2, TEST-2 | docker-compose.yml, postman/Dockerfile, perf/compose.perf.yml, scripts, README, docs/perf/README.md, quality report | from the ~/Desktop checkout: compose up --build, `docker compose run --rm newman`, scripts/postman.sh, demo.sh, k6 smoke (hit and miss, 5 VUs, 15 s) | newman 49/49 twice, demo 16/16, k6 smoke exit 0 with 0 % errors |
+
+## 2026-10-08 - Phase 2 scenario B1 (branch feat/b1-owner-dedupe-default)
+| Scenario | PRD IDs | Files drafted by AI | Verification | Result | Sign-off |
+|---|---|---|---|---|---|
+| B1 owner default dedupe | FR-1.4, SCN-B1 | V2__owner_dedupe_default.sql (verbatim §11.3), CreateLinkRequest (Boolean), LinkService, LinkRepository.ownerDedupeDefault, OwnerDedupeDefaultTest (3x2 truth table), OwnerDedupeDefaultIT, SeedDataIT version list, docs/scenarios/B1.md | `./mvnw -B verify` | PASS, 250 + 74 IT, service.* 99.5 % | tech lead: migration |

@@ -44,6 +44,11 @@ public class LinkRepository {
       WHERE code = :code AND owner_id = :ownerId AND status = 'ACTIVE';
       """;
 
+  static final String OWNER_DEDUPE_DEFAULT =
+      """
+      SELECT dedupe_default FROM owners WHERE id = :ownerId;
+      """;
+
   private static final RowMapper<Link> LINK_MAPPER = LinkRepository::mapLink;
 
   private final JdbcClient jdbc;
@@ -132,6 +137,20 @@ public class LinkRepository {
         .param("ownerId", ownerId)
         .param("now", SqlTypes.timestamptz(now))
         .update();
+  }
+
+  /**
+   * URL-FR-1.4 / scenario B1: the owner's default dedupe setting ({@code owners.dedupe_default}).
+   *
+   * @param ownerId owner id
+   * @return the owner's default, {@code false} for an unknown owner
+   */
+  public boolean ownerDedupeDefault(long ownerId) {
+    return jdbc.sql(OWNER_DEDUPE_DEFAULT)
+        .param("ownerId", ownerId)
+        .query(Boolean.class)
+        .optional()
+        .orElse(Boolean.FALSE);
   }
 
   private static Link mapLink(ResultSet rs, int rowNum) throws SQLException {

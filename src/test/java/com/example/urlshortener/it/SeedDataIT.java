@@ -45,7 +45,7 @@ class SeedDataIT {
             .query(String.class)
             .list();
 
-    assertThat(versions).containsExactly("1", "1.1");
+    assertThat(versions).containsExactly("1", "1.1", "2");
   }
 
   @Test
