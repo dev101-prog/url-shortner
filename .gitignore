@@ -1,0 +1,27 @@
+# Build output
+target/
+
+# IDE files
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+.classpath
+.project
+.settings/
+.factorypath
+.apt_generated/
+nbproject/
+nbbuild/
+nbdist/
+.nb-gradle/
+
+# OS files
+.DS_Store
+
+# Logs
+*.log
+
+# Maven wrapper download (the wrapper scripts and properties are committed)
+.mvn/wrapper/maven-wrapper.jar

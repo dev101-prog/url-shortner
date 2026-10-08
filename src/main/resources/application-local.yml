@@ -1,0 +1,4 @@
+# application-local.yml
+spring.flyway.locations: classpath:db/migration,classpath:db/seed
+app.analytics.ip-salt: local-dev-salt
+logging.level.com.example.urlshortener: DEBUG

@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Structured JSON logs to stdout (URL-OBS-1, design §9.5, §13.5).
+  Fields: timestamp, level, logger, message, thread, plus MDC keys (request_id, ...).
+  Never log: raw IP, raw API key, request bodies, X-API-Key / Authorization headers.
+-->
+<configuration>
+  <springProperty scope="context" name="appName" source="spring.application.name" defaultValue="url-shortener"/>
+
+  <appender name="JSON_STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+    <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+      <includeContext>false</includeContext>
+      <includeMdc>true</includeMdc>
+      <customFields>{"app":"${appName}"}</customFields>
+      <fieldNames>
+        <timestamp>timestamp</timestamp>
+        <logger>logger</logger>
+        <thread>thread</thread>
+        <version>[ignore]</version>
+        <levelValue>[ignore]</levelValue>
+      </fieldNames>
+    </encoder>
+  </appender>
+
+  <root level="INFO">
+    <appender-ref ref="JSON_STDOUT"/>
+  </root>
+</configuration>
