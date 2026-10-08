@@ -54,6 +54,16 @@ scheduled worker flushes in batches. See design [§1](docs/design-url-shortener.
 Every error uses one envelope, `{"error":{"code","message","details"}}`. Contract and error codes:
 design [§5](docs/design-url-shortener.md#5-api-contract).
 
+## Use the below values for header variables
+
+```bash
+# 1. aliceKey   : demo-key-alice-0001  
+
+# 2. bobKey     :demo-key-bob-0002   
+
+#3 revokedKey │ demo-key-revoked-0003 (returns 401 on purpose) 
+```
+
 ## Database schema and seed data
 Four tables (`owners`, `api_keys`, `links`, `click_events`), Flyway migrations in
 `src/main/resources/db/migration`, demo data in `db/seed` (loaded only with the `local` profile).
