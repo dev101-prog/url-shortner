@@ -8,6 +8,7 @@ import jakarta.validation.constraints.Positive;
 import java.time.Duration;
 import java.util.List;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.context.properties.bind.DefaultValue;
 import org.springframework.validation.annotation.Validated;
 
 /**
@@ -19,6 +20,7 @@ import org.springframework.validation.annotation.Validated;
  * @param cache cache sizes and TTLs
  * @param rateLimit rate limits
  * @param analytics click pipeline settings
+ * @param http HTTP input limits (not in §7.3; defaults equal the design values)
  */
 @Validated
 @ConfigurationProperties(prefix = "app")
@@ -27,7 +29,8 @@ public record AppProperties(
     @NotNull @Valid Links links,
     @NotNull @Valid Cache cache,
     @NotNull @Valid RateLimit rateLimit,
-    @NotNull @Valid Analytics analytics) {
+    @NotNull @Valid Analytics analytics,
+    @NotNull @Valid @DefaultValue Http http) {
 
   /**
    * Link creation rules (URL-FR-1.x, 2.x, 4.x).
@@ -64,12 +67,14 @@ public record AppProperties(
    * @param negativeTtl negative cache TTL
    * @param maxSize maximum entries per link cache
    * @param apiKeyTtl API key cache TTL
+   * @param apiKeyMaxSize maximum API key cache entries (design §3.5: 10,000)
    */
   public record Cache(
       @NotNull Duration ttl,
       @NotNull Duration negativeTtl,
       @Positive long maxSize,
-      @NotNull Duration apiKeyTtl) {}
+      @NotNull Duration apiKeyTtl,
+      @Positive @DefaultValue("10000") long apiKeyMaxSize) {}
 
   /**
    * Rate limits (PRD A8).
@@ -102,4 +107,11 @@ public record AppProperties(
       botPatterns = botPatterns == null ? List.of() : List.copyOf(botPatterns);
     }
   }
+
+  /**
+   * HTTP input limits (URL-NFR-4.5).
+   *
+   * @param maxBodyBytes maximum request body size in bytes (design §3.1: 8 KB)
+   */
+  public record Http(@Positive @DefaultValue("8192") int maxBodyBytes) {}
 }

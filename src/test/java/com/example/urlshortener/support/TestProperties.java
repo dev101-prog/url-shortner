@@ -83,9 +83,14 @@ public final class TestProperties {
             blockedDomains,
             RESERVED_WORDS),
         new AppProperties.Cache(
-            Duration.ofMinutes(10), Duration.ofSeconds(60), 100_000L, Duration.ofSeconds(30)),
+            Duration.ofMinutes(10),
+            Duration.ofSeconds(60),
+            100_000L,
+            Duration.ofSeconds(30),
+            10_000L),
         new AppProperties.RateLimit(60, 600),
         new AppProperties.Analytics(
-            10_000, Duration.ofSeconds(1), 500, ipSalt, "2026-10-01", BOT_PATTERNS));
+            10_000, Duration.ofSeconds(1), 500, ipSalt, "2026-10-01", BOT_PATTERNS),
+        new AppProperties.Http(8192));
   }
 }

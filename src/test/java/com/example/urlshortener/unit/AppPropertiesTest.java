@@ -9,7 +9,6 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.boot.context.properties.bind.validation.BindValidationException;
 import org.springframework.boot.test.context.ConfigDataApplicationContextInitializer;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
-import org.springframework.context.annotation.Configuration;
 
 /** Binds the real application*.yml and checks the §7.3 defaults and validation. */
 class AppPropertiesTest {
@@ -53,6 +52,8 @@ class AppPropertiesTest {
           assertThat(p.cache().negativeTtl()).isEqualTo(Duration.ofSeconds(60));
           assertThat(p.cache().maxSize()).isEqualTo(100_000L);
           assertThat(p.cache().apiKeyTtl()).isEqualTo(Duration.ofSeconds(30));
+          assertThat(p.cache().apiKeyMaxSize()).isEqualTo(10_000L);
+          assertThat(p.http().maxBodyBytes()).isEqualTo(8192);
           assertThat(p.rateLimit().createPerMinute()).isEqualTo(60);
           assertThat(p.rateLimit().redirectPerMinute()).isEqualTo(600);
           assertThat(p.analytics().bufferCapacity()).isEqualTo(10_000);
@@ -121,7 +122,6 @@ class AppPropertiesTest {
     assertThat(analytics.botPatterns()).isEmpty();
   }
 
-  @Configuration(proxyBeanMethods = false)
   @EnableConfigurationProperties(AppProperties.class)
   static class PropsConfig {}
 }
