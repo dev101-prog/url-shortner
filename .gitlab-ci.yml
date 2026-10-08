@@ -1,0 +1,196 @@
+# GitLab CI/CD for the URL shortener (design §9.1 gates, §10.5 human sign-off, §13).
+#
+# Pipeline: lint -> test -> security -> package -> deploy. Every deploy job is manual; production
+# runs only for tags and only through the protected "production" environment (configure required
+# approvals under Settings > CI/CD > Protected environments). Humans approve; CI never deploys alone.
+#
+# Required CI/CD variables (Settings > CI/CD > Variables). Never commit values to this file.
+#   CI_REGISTRY, CI_REGISTRY_USER, CI_REGISTRY_PASSWORD, CI_REGISTRY_IMAGE  predefined by GitLab
+#   NVD_API_KEY                  masked, optional  NVD API key for OWASP Dependency-Check (G9)
+#   APP_IP_SALT                  masked, protected, per environment  HMAC salt for IP hashing
+#   SPRING_DATASOURCE_URL        per environment   jdbc:postgresql://<host>:5432/urlshortener
+#   SPRING_DATASOURCE_USERNAME   per environment
+#   SPRING_DATASOURCE_PASSWORD   masked, protected, per environment
+#   APP_BASE_URL                 per environment   public base URL, e.g. https://sho.rt
+#   KUBE_CONTEXT                 per environment   kubectl/helm context of the target cluster
+#   K8S_NAMESPACE                per environment   namespace to deploy into
+#   HELM_CHART                   chart reference for the app (placeholder; no chart in this repo)
+# Scope the per-environment variables to the dev / staging / production environments.
+# Database migrations are a separate, human-run step before deploy (design §13.4).
+
+stages:
+  - lint
+  - test
+  - security
+  - package
+  - deploy
+
+default:
+  image: eclipse-temurin:21-jdk
+  interruptible: true
+
+variables:
+  MAVEN_OPTS: "-Dmaven.repo.local=$CI_PROJECT_DIR/.m2/repository"
+  MAVEN_CLI: "-B --no-transfer-progress"
+
+.maven-cache: &maven-cache
+  cache:
+    key:
+      files: [pom.xml]
+    paths: [.m2/repository]
+
+# --- lint (G1) ---------------------------------------------------------------------------------
+lint:
+  stage: lint
+  <<: *maven-cache
+  script:
+    - ./mvnw $MAVEN_CLI spotless:check checkstyle:check@checkstyle-check
+
+# --- test (G2-G7) ------------------------------------------------------------------------------
+test:
+  stage: test
+  <<: *maven-cache
+  services:
+    - name: docker:27-dind
+      alias: docker
+      command: ["--tls=false"]
+  variables:
+    # Testcontainers talks to the docker:dind service
+    DOCKER_HOST: "tcp://docker:2375"
+    DOCKER_TLS_CERTDIR: ""
+    TESTCONTAINERS_HOST_OVERRIDE: "docker"
+  script:
+    - ./mvnw $MAVEN_CLI verify
+    - >
+      awk -F, 'NR>1 {m+=$8; c+=$9} END {printf "Total line coverage: %.1f%%\n", 100*c/(m+c)}'
+      target/site/jacoco-merged/jacoco.csv
+  coverage: '/Total line coverage: \d+\.\d+%/'
+  artifacts:
+    when: always
+    expire_in: 14 days
+    paths:
+      - target/site/jacoco-merged/
+    reports:
+      junit:
+        - target/surefire-reports/TEST-*.xml
+        - target/failsafe-reports/TEST-*.xml
+
+# --- security (G3, G8, G9) ---------------------------------------------------------------------
+gitleaks:
+  stage: security
+  image:
+    name: zricethezav/gitleaks:v8.21.2
+    entrypoint: [""]
+  variables:
+    GIT_DEPTH: "0"
+  script:
+    - gitleaks detect --source . --config .gitleaks.toml --redact --verbose --exit-code 1
+
+dependency-check:
+  stage: security
+  <<: *maven-cache
+  script:
+    - ./mvnw $MAVEN_CLI -Psecurity dependency-check:check ${NVD_API_KEY:+-DnvdApiKey=$NVD_API_KEY}
+  artifacts:
+    when: always
+    expire_in: 14 days
+    paths:
+      - target/dependency-check-report.html
+      - target/dependency-check-report.json
+
+spotbugs-report:
+  stage: security
+  <<: *maven-cache
+  script:
+    - ./mvnw $MAVEN_CLI compile spotbugs:check@spotbugs-check
+  artifacts:
+    when: always
+    expire_in: 14 days
+    paths:
+      - target/spotbugsXml.xml
+
+# --- package -----------------------------------------------------------------------------------
+package:
+  stage: package
+  image: docker:27
+  services:
+    - name: docker:27-dind
+      alias: docker
+      command: ["--tls=false"]
+  variables:
+    DOCKER_HOST: "tcp://docker:2375"
+    DOCKER_TLS_CERTDIR: ""
+  rules:
+    - if: $CI_COMMIT_TAG
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  script:
+    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
+    - docker build -t "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA" .
+    - docker push "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA"
+    - |
+      if [ -n "$CI_COMMIT_TAG" ]; then
+        docker tag "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA" "$CI_REGISTRY_IMAGE:$CI_COMMIT_TAG"
+        docker push "$CI_REGISTRY_IMAGE:$CI_COMMIT_TAG"
+      fi
+
+# --- deploy (always manual, human-approved) ----------------------------------------------------
+.deploy:
+  stage: deploy
+  image: alpine/k8s:1.30.4
+  interruptible: false
+  script:
+    # Placeholder deployment driven only by CI/CD variables. Secrets go through a temporary env
+    # file into a Kubernetes Secret; they are never echoed or passed on the command line.
+    - kubectl config use-context "$KUBE_CONTEXT"
+    - umask 077
+    - |
+      printf 'APP_IP_SALT=%s\nSPRING_DATASOURCE_PASSWORD=%s\n' \
+        "$APP_IP_SALT" "$SPRING_DATASOURCE_PASSWORD" > /tmp/app-secrets.env
+    - >
+      kubectl -n "$K8S_NAMESPACE" create secret generic url-shortener-secrets
+      --from-env-file=/tmp/app-secrets.env --dry-run=client -o yaml | kubectl apply -f -
+    - rm -f /tmp/app-secrets.env
+    - >
+      helm upgrade --install url-shortener "$HELM_CHART"
+      --namespace "$K8S_NAMESPACE"
+      --set image.repository="$CI_REGISTRY_IMAGE"
+      --set image.tag="${CI_COMMIT_TAG:-$CI_COMMIT_SHA}"
+      --set env.SPRING_DATASOURCE_URL="$SPRING_DATASOURCE_URL"
+      --set env.SPRING_DATASOURCE_USERNAME="$SPRING_DATASOURCE_USERNAME"
+      --set env.APP_BASE_URL="$APP_BASE_URL"
+      --set envFromSecret=url-shortener-secrets
+      --wait --timeout 5m
+    - kubectl -n "$K8S_NAMESPACE" rollout status deployment/url-shortener --timeout=5m
+
+deploy_dev:
+  extends: .deploy
+  environment:
+    name: dev
+    deployment_tier: development
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      when: manual
+    - if: $CI_COMMIT_TAG
+      when: manual
+
+deploy_staging:
+  extends: .deploy
+  environment:
+    name: staging
+    deployment_tier: staging
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      when: manual
+    - if: $CI_COMMIT_TAG
+      when: manual
+
+deploy_prod:
+  extends: .deploy
+  environment:
+    name: production
+    deployment_tier: production
+  rules:
+    # tags only; "production" must be a protected environment with required approvals
+    - if: $CI_COMMIT_TAG
+      when: manual
+  allow_failure: false
