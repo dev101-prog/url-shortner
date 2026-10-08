@@ -1,0 +1,10 @@
+# Keep the build context small and free of local state (Dockerfile does COPY . .)
+target/
+.git/
+.idea/
+.vscode/
+*.iml
+.DS_Store
+*.log
+postman/
+perf/
