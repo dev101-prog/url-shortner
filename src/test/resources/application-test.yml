@@ -1,0 +1,8 @@
+# Test profile (design §8.5): Flyway clean is allowed only here, so each integration test class
+# can start from a clean schema. Never used outside tests.
+spring:
+  flyway:
+    clean-disabled: false
+app:
+  analytics:
+    ip-salt: test-salt

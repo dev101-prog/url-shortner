@@ -75,7 +75,7 @@
     <!-- Field injection is not allowed: constructor injection only -->
     <module name="Regexp">
       <property name="id" value="noFieldInjection"/>
-      <property name="format" value="^\s*@Autowired\s*$"/>
+      <property name="format" value="@Autowired\s+(?:(?:private|protected|public|static|final)\s+)*[\w.&lt;&gt;?, \[\]]+\s+\w+\s*(?:=[^;(]*)?;"/>
       <property name="illegalPattern" value="true"/>
       <property name="message" value="Use constructor injection; field injection is not allowed."/>
     </module>
