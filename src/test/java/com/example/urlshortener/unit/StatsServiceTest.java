@@ -171,4 +171,37 @@ class StatsServiceTest {
         .isInstanceOfSatisfying(
             ApiException.class, e -> assertThat(e.code()).isEqualTo(ErrorCode.NOT_FOUND));
   }
+
+  @Test
+  void fr7_9_excludeBotsUsesTheHumanOnlyQueries() {
+    when(repo.humanTotals(anyLong(), any(), any())).thenReturn(new LinkStats.ClickTotals(4, 0, 2));
+    when(repo.humanClicksPerDay(anyLong(), any(), any()))
+        .thenReturn(List.of(new LinkStats.DailyClicks(TODAY, 4, 4, 2)));
+    when(repo.humanTopReferrers(anyLong(), any(), any()))
+        .thenReturn(List.of(new LinkStats.ReferrerClicks("twitter.com", 2)));
+    when(repo.humanTopCountries(anyLong(), any(), any())).thenReturn(List.of());
+
+    LinkStats stats = service.stats(ALICE, "aB3dE7x", null, null, true);
+
+    assertThat(stats.totalClicks()).isEqualTo(4);
+    assertThat(stats.botClicks()).isZero();
+    assertThat(stats.humanClicks()).isEqualTo(4);
+    assertThat(stats.uniqueVisitorsEstimate()).isEqualTo(2);
+    assertThat(stats.topReferrers())
+        .containsExactly(new LinkStats.ReferrerClicks("twitter.com", 2));
+    assertThat(stats.topCountries()).isNull();
+    assertThat(stats.clicksPerDay())
+        .hasSize(30)
+        .contains(new LinkStats.DailyClicks(TODAY, 4, 4, 2));
+    org.mockito.Mockito.verify(repo, org.mockito.Mockito.never()).totals(anyLong(), any(), any());
+  }
+
+  @Test
+  void fr7_9_defaultOverloadKeepsAllClicks() {
+    LinkStats viaDefault = service.stats(ALICE, "aB3dE7x", null, null);
+    LinkStats viaFalse = service.stats(ALICE, "aB3dE7x", null, null, false);
+
+    assertThat(viaFalse).isEqualTo(viaDefault);
+    assertThat(viaDefault.totalClicks()).isEqualTo(6);
+  }
 }

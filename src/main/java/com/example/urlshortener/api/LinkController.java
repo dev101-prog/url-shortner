@@ -220,6 +220,7 @@ public class LinkController {
    * @param code short code
    * @param from first day (ISO date) or absent
    * @param to last day (ISO date) or absent
+   * @param excludeBots URL-FR-7.9: count human clicks only
    * @return statistics
    */
   @Operation(
@@ -247,8 +248,14 @@ public class LinkController {
           AuthenticatedOwner owner,
       @PathVariable String code,
       @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
-    return StatsResponse.from(stats.stats(owner, code, from, to));
+      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+      @Parameter(
+              description =
+                  "URL-FR-7.9: true counts human clicks only (is_bot = false); absent or false"
+                      + " returns the unchanged default output.")
+          @RequestParam(name = "exclude_bots", required = false, defaultValue = "false")
+          boolean excludeBots) {
+    return StatsResponse.from(stats.stats(owner, code, from, to, excludeBots));
   }
 
   private String shortUrl(Link link) {

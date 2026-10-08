@@ -60,6 +60,24 @@ public final class StatsService {
    * @return statistics
    */
   public LinkStats stats(AuthenticatedOwner owner, String code, LocalDate from, LocalDate to) {
+    return stats(owner, code, from, to, false);
+  }
+
+  /**
+   * URL-FR-7.9 (scenario A3): like {@link #stats(AuthenticatedOwner, String, LocalDate,
+   * LocalDate)}; with {@code excludeBots} every number is computed over {@code is_bot = false}
+   * events only. URL-FR-7.10: {@code unique_visitors_estimate} is the distinct IP hashes over the
+   * whole range, never the sum of daily values.
+   *
+   * @param owner authenticated caller
+   * @param code short code
+   * @param from first day (inclusive) or {@code null}
+   * @param to last day (inclusive) or {@code null}
+   * @param excludeBots count human clicks only
+   * @return statistics
+   */
+  public LinkStats stats(
+      AuthenticatedOwner owner, String code, LocalDate from, LocalDate to, boolean excludeBots) {
     LocalDate today = LocalDate.ofInstant(clock.instant(), ZoneOffset.UTC);
     LocalDate end = to != null ? to : today;
     LocalDate start = from != null ? from : end.minusDays(defaultDays - 1L);
@@ -73,9 +91,23 @@ public final class StatsService {
 
     Instant fromInclusive = start.atStartOfDay(ZoneOffset.UTC).toInstant();
     Instant toExclusive = end.plusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant();
-    LinkStats.ClickTotals totals = stats.totals(link.id(), fromInclusive, toExclusive);
+    long id = link.id();
+    LinkStats.ClickTotals totals =
+        excludeBots
+            ? stats.humanTotals(id, fromInclusive, toExclusive)
+            : stats.totals(id, fromInclusive, toExclusive);
     List<LinkStats.CountryClicks> countries =
-        stats.topCountries(link.id(), fromInclusive, toExclusive);
+        excludeBots
+            ? stats.humanTopCountries(id, fromInclusive, toExclusive)
+            : stats.topCountries(id, fromInclusive, toExclusive);
+    List<LinkStats.DailyClicks> days =
+        excludeBots
+            ? stats.humanClicksPerDay(id, fromInclusive, toExclusive)
+            : stats.clicksPerDay(id, fromInclusive, toExclusive);
+    List<LinkStats.ReferrerClicks> referrers =
+        excludeBots
+            ? stats.humanTopReferrers(id, fromInclusive, toExclusive)
+            : stats.topReferrers(id, fromInclusive, toExclusive);
 
     return new LinkStats(
         link.code(),
@@ -85,8 +117,8 @@ public final class StatsService {
         totals.total() - totals.bots(),
         totals.bots(),
         totals.uniqueVisitors(),
-        zeroFill(start, end, stats.clicksPerDay(link.id(), fromInclusive, toExclusive)),
-        stats.topReferrers(link.id(), fromInclusive, toExclusive),
+        zeroFill(start, end, days),
+        referrers,
         countries.isEmpty() ? null : countries);
   }
 

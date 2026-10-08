@@ -135,4 +135,50 @@ class StatsApiIT {
     assertThat(oneDay.get("total_clicks").asLong()).isZero();
     assertThat(oneDay.get("clicks_per_day")).hasSize(301);
   }
+
+  @Test
+  void fr7_9_excludeBots() {
+    HttpResponse<String> response = stats("/api/v1/links/aB3dE7x/stats?exclude_bots=true", ALICE);
+
+    assertThat(response.statusCode()).isEqualTo(200);
+    JsonNode body = json(response);
+    // seed: 6 clicks, 2 bots (Googlebot, curl) -> 4 human clicks from 2 distinct IP hashes
+    assertThat(body.get("total_clicks").asLong()).isEqualTo(4);
+    assertThat(body.get("human_clicks").asLong()).isEqualTo(4);
+    assertThat(body.get("bot_clicks").asLong()).isZero();
+    assertThat(body.get("unique_visitors_estimate").asLong()).isEqualTo(2);
+    assertThat(pairs(body.get("top_referrers"), "referrer"))
+        .containsExactly("twitter.com=2", "linkedin.com=1", "news.ycombinator.com=1");
+    assertThat(pairs(body.get("top_countries"), "country")).containsExactly("GB=2", "US=2");
+    long dailyClicks = 0;
+    for (JsonNode d : body.get("clicks_per_day")) {
+      dailyClicks += d.get("clicks").asLong();
+      assertThat(d.get("clicks").asLong()).isEqualTo(d.get("human_clicks").asLong());
+    }
+    assertThat(dailyClicks).isEqualTo(4);
+  }
+
+  @Test
+  void fr7_9_absentOrFalseIsByteIdenticalToTheDefault() {
+    HttpResponse<String> absent = stats("/api/v1/links/aB3dE7x/stats", ALICE);
+    HttpResponse<String> explicitFalse =
+        stats("/api/v1/links/aB3dE7x/stats?exclude_bots=false", ALICE);
+
+    assertThat(explicitFalse.statusCode()).isEqualTo(200);
+    assertThat(explicitFalse.body()).isEqualTo(absent.body());
+    assertThat(json(absent).get("total_clicks").asLong()).isEqualTo(6);
+  }
+
+  @Test
+  void fr7_10_uniqueVisitorsIsRangeLevelDistinct() {
+    JsonNode body = json(stats("/api/v1/links/aB3dE7x/stats", ALICE));
+
+    long sumOfDaily = 0;
+    for (JsonNode d : body.get("clicks_per_day")) {
+      sumOfDaily += d.get("unique_visitors").asLong();
+    }
+    // 3 distinct IP hashes over the range (design §11.4), not the sum of the daily values
+    assertThat(body.get("unique_visitors_estimate").asLong()).isEqualTo(3);
+    assertThat(sumOfDaily).isGreaterThan(3);
+  }
 }

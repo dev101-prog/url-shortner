@@ -470,6 +470,15 @@
             "format" : "date",
             "type" : "string"
           }
+        }, {
+          "description" : "URL-FR-7.9: true counts human clicks only (is_bot = false); absent or false returns the unchanged default output.",
+          "in" : "query",
+          "name" : "exclude_bots",
+          "required" : false,
+          "schema" : {
+            "default" : false,
+            "type" : "boolean"
+          }
         } ],
         "responses" : {
           "200" : {
