@@ -55,3 +55,12 @@ above predate that rewrite. Current SHAs: `git log`.
 
 Open questions for the reviewer: NFR-1 not met on the developer laptop (see docs/perf/README.md);
 perf run needs rate-limit/negative-cache overrides on a separate container.
+
+### Batch C extra deliverables (2026-10-08)
+| Deliverable | Commit | Verification | Result |
+|---|---|---|---|
+| a) Postman collection + environment | 995d934 | newman 6 (Docker), two runs | 23 requests, 49 assertions, 0 failures |
+| b) GitHub Actions, PR template, CODEOWNERS, .gitleaks.toml, .editorconfig | 92c3265 | PyYAML parse; gitleaks v8.21.2 locally | YAML OK; no leaks |
+| c) .gitlab-ci.yml | e4eabb6 | PyYAML + Ruby Psych parse | OK (not executed on GitLab) |
+| d) README.md | e695231 | quick start from a fresh clone + fresh DB volume | demo 16/16 PASS |
+| e) docs/quality-report.md | (this commit) | numbers from the latest verify, k6, newman, demo and gitleaks runs | see report |
