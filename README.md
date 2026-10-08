@@ -57,11 +57,11 @@ design [§5](docs/design-url-shortener.md#5-api-contract).
 ## Use the below values for header variables
 
 ```bash
-# 1. aliceKey   : demo-key-alice-0001  
+# 1. aliceKey:demo-key-alice-0001  
 
-# 2. bobKey     :demo-key-bob-0002   
+# 2. bobKey:demo-key-bob-0002   
 
-#3 revokedKey │ demo-key-revoked-0003 (returns 401 on purpose) 
+#3 revokedKey:demo-key-revoked-0003 (returns 401 on purpose) 
 ```
 
 ## Database schema and seed data
