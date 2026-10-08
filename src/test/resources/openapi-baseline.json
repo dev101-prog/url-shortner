@@ -552,27 +552,21 @@
             "content" : {
               "*/*" : {
                 "schema" : {
-                  "additionalProperties" : {
-                    "type" : "object"
-                  },
                   "type" : "object"
                 }
               }
             },
-            "description" : "{\"status\":\"UP\",\"checks\":{\"db\":\"UP\"}}"
+            "description" : "Ready: {\"status\":\"UP\",\"checks\":{\"db\":\"UP\"}}"
           },
           "503" : {
             "content" : {
-              "*/*" : {
+              "application/json" : {
                 "schema" : {
-                  "additionalProperties" : {
-                    "type" : "object"
-                  },
-                  "type" : "object"
+                  "$ref" : "#/components/schemas/ErrorResponse"
                 }
               }
             },
-            "description" : "NOT_READY: {\"status\":\"DOWN\",\"checks\":{\"db\":\"DOWN\"}}"
+            "description" : "NOT_READY: database unreachable; details.checks.db = DOWN"
           }
         },
         "summary" : "Readiness",

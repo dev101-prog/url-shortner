@@ -64,3 +64,9 @@ perf run needs rate-limit/negative-cache overrides on a separate container.
 | c) .gitlab-ci.yml | e4eabb6 | PyYAML + Ruby Psych parse | OK (not executed on GitLab) |
 | d) README.md | e695231 | quick start from a fresh clone + fresh DB volume | demo 16/16 PASS |
 | e) docs/quality-report.md | (this commit) | numbers from the latest verify, k6, newman, demo and gitleaks runs | see report |
+
+## 2026-10-08 - fixes on main after batch C
+
+| Change | PRD IDs | Files | Verification | Result |
+|---|---|---|---|---|
+| /readyz 503 uses the standard envelope (`NOT_READY`, details.checks.db=DOWN); human decision reconciling §5.2/§5.3; OpenAPI baseline change approved | FR-8.2, NFR-4.6 | HealthController, HealthIT, openapi-baseline.json (only /readyz changed), runbook, ADR 0009, quality report | `./mvnw -B verify` | PASS, 242 + 70 IT |

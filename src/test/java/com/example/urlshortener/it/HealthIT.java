@@ -85,8 +85,12 @@ class HealthIT {
     HttpResponse<String> live = get("/healthz");
 
     assertThat(ready.statusCode()).isEqualTo(503);
-    assertThat(json(ready).get("status").asText()).isEqualTo("DOWN");
-    assertThat(json(ready).path("checks").path("db").asText()).isEqualTo("DOWN");
+    assertThat(ready.body())
+        .isEqualTo(
+            "{\"error\":{\"code\":\"NOT_READY\",\"message\":\"Service is not ready: database"
+                + " unreachable.\",\"details\":{\"checks\":{\"db\":\"DOWN\"}}}}");
+    assertThat(ready.headers().firstValue("X-Request-Id")).isPresent();
+    assertThat(ready.headers().firstValue("X-Content-Type-Options")).hasValue("nosniff");
     assertThat(live.statusCode()).as("liveness has no dependency checks").isEqualTo(200);
   }
 }

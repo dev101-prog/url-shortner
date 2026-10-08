@@ -80,7 +80,7 @@ Thresholds and code were not tuned to pass.
 | 9 | Rate limiter fails open with a metric if its counter store errors | accepted |
 | 10 | `RandomConfig` provides the `SecureRandom` bean | accepted |
 | 11 | ArchUnit rule 4 kept exactly as worded; infra receives plain values from `config.ClickPipelineConfig` | accepted (human decision) |
-| 12 | `/readyz` 503 returns the §5.3 body `{"status":"DOWN","checks":{"db":"DOWN"}}`, not the error envelope | implementation decision, for review |
+| 12 | `/readyz` 503 uses the standard envelope: `NOT_READY` (§5.2) with `details.checks.db = "DOWN"`; the 200 body stays `{"status":"UP","checks":{"db":"UP"}}` (reconciles §5.2 with §5.3) | human decision (2026-10-08); OpenAPI baseline change approved |
 | 13 | Readiness check goes api → `ReadinessService` → `DatabaseHealthRepository` (rule 3: api never touches repositories) | implementation decision, for review |
 | 14 | Stats "max span 365 days" means at most 365 days inclusive; range validated before ownership (flow §6.7) | implementation decision, for review |
 | 15 | `/error` is handled by `EnvelopeErrorController`, one read-only handler per HTTP method (FindSecBugs CSRF rule) | implementation decision, for review |

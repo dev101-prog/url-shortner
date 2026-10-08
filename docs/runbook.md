@@ -16,7 +16,7 @@ Developer mode: `docker compose up -d postgres` then `./mvnw spring-boot:run -Ds
 | Probe | Meaning | Use as |
 |---|---|---|
 | `GET /healthz` | process alive, no dependency checks | liveness |
-| `GET /readyz` | Postgres answers within 1 s (`app.health.db-timeout`) | readiness; 503 `{"status":"DOWN",...}` otherwise |
+| `GET /readyz` | Postgres answers within 1 s (`app.health.db-timeout`) | readiness; otherwise 503 error envelope `{"error":{"code":"NOT_READY",...,"details":{"checks":{"db":"DOWN"}}}}` |
 
 ## Failure modes (design §6.8)
 

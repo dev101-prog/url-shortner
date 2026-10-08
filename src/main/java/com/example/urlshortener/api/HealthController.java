@@ -1,7 +1,11 @@
 package com.example.urlshortener.api;
 
+import com.example.urlshortener.api.dto.ErrorResponse;
 import com.example.urlshortener.service.ReadinessService;
+import com.example.urlshortener.service.error.ErrorCode;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.util.Map;
@@ -17,6 +21,7 @@ public class HealthController {
 
   private static final String UP = "UP";
   private static final String DOWN = "DOWN";
+  private static final String NOT_READY_MESSAGE = "Service is not ready: database unreachable.";
 
   private final ReadinessService readiness;
 
@@ -42,21 +47,33 @@ public class HealthController {
   }
 
   /**
-   * URL-FR-8.2: 200 when the database answers within 1 s, otherwise 503 with the same shape (design
-   * §5.3); readiness checks the database only (design §16.3).
+   * URL-FR-8.2: 200 {@code {"status":"UP","checks":{"db":"UP"}}} when the database answers within 1
+   * s; otherwise 503 with the standard envelope, code {@code NOT_READY} (design §5.2) and the
+   * per-dependency checks in {@code details}. Readiness checks the database only (design §16.3).
    *
-   * @return readiness with per-dependency status
+   * @return readiness
    */
   @GetMapping("/readyz")
   @Operation(summary = "Readiness", description = "Checks the database only (design §16.3).")
-  @ApiResponse(responseCode = "200", description = "{\"status\":\"UP\",\"checks\":{\"db\":\"UP\"}}")
+  @ApiResponse(
+      responseCode = "200",
+      description = "Ready: {\"status\":\"UP\",\"checks\":{\"db\":\"UP\"}}")
   @ApiResponse(
       responseCode = "503",
-      description = "NOT_READY: {\"status\":\"DOWN\",\"checks\":{\"db\":\"DOWN\"}}")
-  public ResponseEntity<Map<String, Object>> readiness() {
-    boolean dbUp = readiness.isDatabaseUp();
-    String status = dbUp ? UP : DOWN;
-    return ResponseEntity.status(dbUp ? HttpStatus.OK : HttpStatus.SERVICE_UNAVAILABLE)
-        .body(Map.of("status", status, "checks", Map.of("db", status)));
+      description = "NOT_READY: database unreachable; details.checks.db = DOWN",
+      content =
+          @Content(
+              mediaType = "application/json",
+              schema = @Schema(implementation = ErrorResponse.class)))
+  public ResponseEntity<Object> readiness() {
+    if (readiness.isDatabaseUp()) {
+      return ResponseEntity.ok(Map.of("status", UP, "checks", Map.of("db", UP)));
+    }
+    return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+        .body(
+            ErrorResponse.of(
+                ErrorCode.NOT_READY.name(),
+                NOT_READY_MESSAGE,
+                Map.of("checks", Map.of("db", DOWN))));
   }
 }
