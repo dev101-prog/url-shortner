@@ -76,3 +76,8 @@ perf run needs rate-limit/negative-cache overrides on a separate container.
 | Scenario | PRD IDs | Files drafted by AI | Verification | Result | Sign-off |
 |---|---|---|---|---|---|
 | B2 seeded defect + regression tests | SCN-B2, FR-3.2, FR-4.3 | scripts/demo/b2-seeded-bug.patch (applied), RedirectServiceTest.b2_expiredFromCacheReturnsGone, B2ExpiredFromCacheIT, docs/scenarios/B2.md | `./mvnw -B clean verify` | FAILS as intended: unit 243/2 failed; with failure.ignore, IT 71/2 failed (all four failures are expired-from-cache) | standard review |
+
+## 2026-10-08 - Phase 2 scenario B2 fix (branch fix/b2-expired-cache-410)
+| Scenario | PRD IDs | Files | Verification | Result | Sign-off |
+|---|---|---|---|---|---|
+| B2 fix: single status evaluator | SCN-B2, FR-3.2, FR-4.3 | RedirectService, CachedLink (seeded patch reversed), docs/scenarios/B2.md | `./mvnw -B clean verify` | PASS, 243 + 71 IT, regression tests green; root cause: duplicated status logic in two branches | standard review |
